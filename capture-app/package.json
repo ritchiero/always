@@ -1,0 +1,29 @@
+{
+  "name": "always-capture",
+  "version": "1.0.0",
+  "description": "Electron capture app for Always - Mac continuous recording",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "dev": "tsc && electron ."
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.4.0",
+    "typescript": "^5.4.0"
+  },
+  "private": true,
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "firebase-admin": "^13.6.0",
+    "form-data": "^4.0.5",
+    "node-fetch": "^2.7.0",
+    "node-record-lpcm16": "^1.0.1",
+    "screenshot-desktop": "^1.15.3"
+  }
+}

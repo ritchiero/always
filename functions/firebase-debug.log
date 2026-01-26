@@ -1,0 +1,336 @@
+[debug] [2026-01-26T21:40:51.951Z] ----------------------------------------------------------------------
+[debug] [2026-01-26T21:40:51.952Z] Command:       /usr/local/bin/node /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/.bin/firebase emulators:start --only functions
+[debug] [2026-01-26T21:40:51.953Z] CLI Version:   15.4.0
+[debug] [2026-01-26T21:40:51.953Z] Platform:      darwin
+[debug] [2026-01-26T21:40:51.953Z] Node Version:  v20.11.1
+[debug] [2026-01-26T21:40:51.953Z] Time:          Mon Jan 26 2026 13:40:51 GMT-0800 (Pacific Standard Time)
+[debug] [2026-01-26T21:40:51.953Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-26T21:40:52.583Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] Failed to authenticate, have you run firebase login?
+[warn] ⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI. 
+[info] i  emulators: Starting emulators: functions {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: functions"}}
+[debug] [2026-01-26T21:40:52.695Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-26T21:40:52.695Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2026-01-26T21:40:52.698Z] Write emulator hub locator at /var/folders/15/nd9vbvd93wd8zmg844t0tvvr0000gn/T/hub-always-f6dda.json
+[debug] [2026-01-26T21:40:52.803Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-26T21:40:52.803Z] [eventarc] Eventarc Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-26T21:40:52.803Z] [tasks] Cloud Tasks Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-26T21:40:52.803Z] late-assigned ports for functions and eventarc emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"functions":[{"address":"127.0.0.1","family":"IPv4","port":5001}],"eventarc":[{"address":"127.0.0.1","family":"IPv4","port":9299}],"tasks":[{"address":"127.0.0.1","family":"IPv4","port":9499}]},"metadata":{"message":"late-assigned ports for functions and eventarc emulators"}}
+[warn] ⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect {"metadata":{"emulator":{"name":"functions"},"message":"The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect"}}
+[debug] [2026-01-26T21:40:52.804Z] No OAuth tokens found
+[debug] [2026-01-26T21:40:52.804Z] No OAuth tokens found
+[debug] [2026-01-26T21:40:52.805Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-01-26T21:40:52.805Z] Failed to get Admin SDK config for always-f6dda, falling back to cache Failed to get Admin SDK for Firebase project always-f6dda. Please make sure the project exists and your account has permission to access it. {"name":"FirebaseError","children":[],"exit":2,"message":"Failed to get Admin SDK for Firebase project always-f6dda. Please make sure the project exists and your account has permission to access it.","original":{"name":"FirebaseError","children":[],"exit":1,"message":"Failed to authenticate, have you run firebase login?","original":{},"status":500},"status":500}
+[warn] ⚠  functions: Unable to fetch project Admin SDK configuration, Admin SDK behavior in Cloud Functions emulator may be incorrect. {"metadata":{"emulator":{"name":"functions"},"message":"Unable to fetch project Admin SDK configuration, Admin SDK behavior in Cloud Functions emulator may be incorrect."}}
+[info] i  ui: downloading ui-v1.15.0.zip... {"metadata":{"emulator":{"name":"ui"},"message":"downloading ui-v1.15.0.zip..."}}
+[debug] [2026-01-26T21:40:52.812Z] >>> [apiv2][query] GET https://storage.googleapis.com/firebase-preview-drop/emulator/ui-v1.15.0.zip 
+[debug] [2026-01-26T21:40:52.897Z] <<< [apiv2][status] GET https://storage.googleapis.com/firebase-preview-drop/emulator/ui-v1.15.0.zip 200
+[debug] [2026-01-26T21:40:52.897Z] <<< [apiv2][body] GET https://storage.googleapis.com/firebase-preview-drop/emulator/ui-v1.15.0.zip [stream]
+[debug] [2026-01-26T21:40:53.033Z] Data is 3538469
+[debug] [2026-01-26T21:40:53.033Z] [unzip] Entry: client/ (compressed_size=0 bytes, uncompressed_size=0 bytes)
+[debug] [2026-01-26T21:40:53.033Z] [unzip] Processing entry: client/
+[debug] [2026-01-26T21:40:53.033Z] [unzip] mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/
+[debug] [2026-01-26T21:40:53.033Z] [unzip] Entry: client/favicon-16x16.png (compressed_size=293 bytes, uncompressed_size=293 bytes)
+[debug] [2026-01-26T21:40:53.033Z] [unzip] Processing entry: client/favicon-16x16.png
+[debug] [2026-01-26T21:40:53.033Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.033Z] [unzip] Writing file: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/favicon-16x16.png
+[debug] [2026-01-26T21:40:53.033Z] [unzip] Entry: client/safari-pinned-tab.svg (compressed_size=1433 bytes, uncompressed_size=2611 bytes)
+[debug] [2026-01-26T21:40:53.033Z] [unzip] Processing entry: client/safari-pinned-tab.svg
+[debug] [2026-01-26T21:40:53.033Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.034Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/safari-pinned-tab.svg
+[debug] [2026-01-26T21:40:53.037Z] [unzip] Entry: client/favicon.ico (compressed_size=2933 bytes, uncompressed_size=13294 bytes)
+[debug] [2026-01-26T21:40:53.037Z] [unzip] Processing entry: client/favicon.ico
+[debug] [2026-01-26T21:40:53.037Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.037Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/favicon.ico
+[debug] [2026-01-26T21:40:53.038Z] [unzip] Entry: client/index.html (compressed_size=1364 bytes, uncompressed_size=3071 bytes)
+[debug] [2026-01-26T21:40:53.038Z] [unzip] Processing entry: client/index.html
+[debug] [2026-01-26T21:40:53.038Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.038Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/index.html
+[debug] [2026-01-26T21:40:53.038Z] [unzip] Entry: client/android-chrome-192x192.png (compressed_size=2684 bytes, uncompressed_size=2684 bytes)
+[debug] [2026-01-26T21:40:53.038Z] [unzip] Processing entry: client/android-chrome-192x192.png
+[debug] [2026-01-26T21:40:53.038Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.039Z] [unzip] Writing file: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/android-chrome-192x192.png
+[debug] [2026-01-26T21:40:53.039Z] [unzip] Entry: client/apple-touch-icon.png (compressed_size=2123 bytes, uncompressed_size=2152 bytes)
+[debug] [2026-01-26T21:40:53.039Z] [unzip] Processing entry: client/apple-touch-icon.png
+[debug] [2026-01-26T21:40:53.039Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.039Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/apple-touch-icon.png
+[debug] [2026-01-26T21:40:53.039Z] [unzip] Entry: client/android-chrome-512x512.png (compressed_size=5369 bytes, uncompressed_size=5411 bytes)
+[debug] [2026-01-26T21:40:53.039Z] [unzip] Processing entry: client/android-chrome-512x512.png
+[debug] [2026-01-26T21:40:53.039Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.039Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/android-chrome-512x512.png
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Entry: client/manifest.json (compressed_size=245 bytes, uncompressed_size=551 bytes)
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Processing entry: client/manifest.json
+[debug] [2026-01-26T21:40:53.040Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.040Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/manifest.json
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Entry: client/robots.txt (compressed_size=26 bytes, uncompressed_size=26 bytes)
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Processing entry: client/robots.txt
+[debug] [2026-01-26T21:40:53.040Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Writing file: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/robots.txt
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Entry: client/mstile-150x150.png (compressed_size=2034 bytes, uncompressed_size=2034 bytes)
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Processing entry: client/mstile-150x150.png
+[debug] [2026-01-26T21:40:53.040Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Writing file: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/mstile-150x150.png
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Entry: client/assets/ (compressed_size=0 bytes, uncompressed_size=0 bytes)
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Processing entry: client/assets/
+[debug] [2026-01-26T21:40:53.040Z] [unzip] mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Entry: client/assets/index-BX-A56oj.js (compressed_size=582089 bytes, uncompressed_size=2092775 bytes)
+[debug] [2026-01-26T21:40:53.040Z] [unzip] Processing entry: client/assets/index-BX-A56oj.js
+[debug] [2026-01-26T21:40:53.040Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets
+[debug] [2026-01-26T21:40:53.041Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/index-BX-A56oj.js
+[debug] [2026-01-26T21:40:53.047Z] [unzip] Entry: client/assets/index-CjB9C900.css (compressed_size=35979 bytes, uncompressed_size=298654 bytes)
+[debug] [2026-01-26T21:40:53.047Z] [unzip] Processing entry: client/assets/index-CjB9C900.css
+[debug] [2026-01-26T21:40:53.047Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets
+[debug] [2026-01-26T21:40:53.047Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/index-CjB9C900.css
+[debug] [2026-01-26T21:40:53.048Z] [unzip] Entry: client/assets/index-BX-A56oj.js.map (compressed_size=2362482 bytes, uncompressed_size=10036679 bytes)
+[debug] [2026-01-26T21:40:53.048Z] [unzip] Processing entry: client/assets/index-BX-A56oj.js.map
+[debug] [2026-01-26T21:40:53.048Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets
+[debug] [2026-01-26T21:40:53.048Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/index-BX-A56oj.js.map
+[debug] [2026-01-26T21:40:53.097Z] [unzip] Entry: client/assets/extensions/ (compressed_size=0 bytes, uncompressed_size=0 bytes)
+[debug] [2026-01-26T21:40:53.097Z] [unzip] Processing entry: client/assets/extensions/
+[debug] [2026-01-26T21:40:53.097Z] [unzip] mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/extensions/
+[debug] [2026-01-26T21:40:53.097Z] [unzip] Entry: client/assets/extensions/default-extension.png (compressed_size=1646 bytes, uncompressed_size=1657 bytes)
+[debug] [2026-01-26T21:40:53.097Z] [unzip] Processing entry: client/assets/extensions/default-extension.png
+[debug] [2026-01-26T21:40:53.097Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/extensions
+[debug] [2026-01-26T21:40:53.097Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/extensions/default-extension.png
+[debug] [2026-01-26T21:40:53.098Z] [unzip] Entry: client/assets/img/ (compressed_size=0 bytes, uncompressed_size=0 bytes)
+[debug] [2026-01-26T21:40:53.098Z] [unzip] Processing entry: client/assets/img/
+[debug] [2026-01-26T21:40:53.098Z] [unzip] mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/img/
+[debug] [2026-01-26T21:40:53.098Z] [unzip] Entry: client/assets/img/database.png (compressed_size=29449 bytes, uncompressed_size=29988 bytes)
+[debug] [2026-01-26T21:40:53.098Z] [unzip] Processing entry: client/assets/img/database.png
+[debug] [2026-01-26T21:40:53.098Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/img
+[debug] [2026-01-26T21:40:53.098Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/img/database.png
+[debug] [2026-01-26T21:40:53.098Z] [unzip] Entry: client/assets/provider-icons/ (compressed_size=0 bytes, uncompressed_size=0 bytes)
+[debug] [2026-01-26T21:40:53.098Z] [unzip] Processing entry: client/assets/provider-icons/
+[debug] [2026-01-26T21:40:53.098Z] [unzip] mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/
+[debug] [2026-01-26T21:40:53.098Z] [unzip] Entry: client/assets/provider-icons/auth_service_saml.svg (compressed_size=575 bytes, uncompressed_size=1226 bytes)
+[debug] [2026-01-26T21:40:53.099Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_saml.svg
+[debug] [2026-01-26T21:40:53.099Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.099Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_saml.svg
+[debug] [2026-01-26T21:40:53.099Z] [unzip] Entry: client/assets/provider-icons/auth_service_phone.svg (compressed_size=261 bytes, uncompressed_size=414 bytes)
+[debug] [2026-01-26T21:40:53.099Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_phone.svg
+[debug] [2026-01-26T21:40:53.099Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.099Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_phone.svg
+[debug] [2026-01-26T21:40:53.099Z] [unzip] Entry: client/assets/provider-icons/auth_service_facebook.svg (compressed_size=289 bytes, uncompressed_size=457 bytes)
+[debug] [2026-01-26T21:40:53.099Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_facebook.svg
+[debug] [2026-01-26T21:40:53.100Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.100Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_facebook.svg
+[debug] [2026-01-26T21:40:53.100Z] [unzip] Entry: client/assets/provider-icons/auth_service_game_center.svg (compressed_size=991 bytes, uncompressed_size=3921 bytes)
+[debug] [2026-01-26T21:40:53.100Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_game_center.svg
+[debug] [2026-01-26T21:40:53.100Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.100Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_game_center.svg
+[debug] [2026-01-26T21:40:53.100Z] [unzip] Entry: client/assets/provider-icons/auth_service_apple.svg (compressed_size=230 bytes, uncompressed_size=334 bytes)
+[debug] [2026-01-26T21:40:53.100Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_apple.svg
+[debug] [2026-01-26T21:40:53.100Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.100Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_apple.svg
+[debug] [2026-01-26T21:40:53.100Z] [unzip] Entry: client/assets/provider-icons/auth_service_github.svg (compressed_size=466 bytes, uncompressed_size=838 bytes)
+[debug] [2026-01-26T21:40:53.100Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_github.svg
+[debug] [2026-01-26T21:40:53.100Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.100Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_github.svg
+[debug] [2026-01-26T21:40:53.101Z] [unzip] Entry: client/assets/provider-icons/auth_service_mslive.svg (compressed_size=203 bytes, uncompressed_size=378 bytes)
+[debug] [2026-01-26T21:40:53.101Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_mslive.svg
+[debug] [2026-01-26T21:40:53.101Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.101Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_mslive.svg
+[debug] [2026-01-26T21:40:53.101Z] [unzip] Entry: client/assets/provider-icons/auth_service_yahoo.svg (compressed_size=577 bytes, uncompressed_size=1182 bytes)
+[debug] [2026-01-26T21:40:53.101Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_yahoo.svg
+[debug] [2026-01-26T21:40:53.101Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.101Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_yahoo.svg
+[debug] [2026-01-26T21:40:53.101Z] [unzip] Entry: client/assets/provider-icons/auth_service_twitter.svg (compressed_size=444 bytes, uncompressed_size=751 bytes)
+[debug] [2026-01-26T21:40:53.101Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_twitter.svg
+[debug] [2026-01-26T21:40:53.101Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.101Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_twitter.svg
+[debug] [2026-01-26T21:40:53.102Z] [unzip] Entry: client/assets/provider-icons/auth_service_play_games.svg (compressed_size=565 bytes, uncompressed_size=1173 bytes)
+[debug] [2026-01-26T21:40:53.102Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_play_games.svg
+[debug] [2026-01-26T21:40:53.102Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.102Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_play_games.svg
+[debug] [2026-01-26T21:40:53.102Z] [unzip] Entry: client/assets/provider-icons/auth_service_email.svg (compressed_size=228 bytes, uncompressed_size=326 bytes)
+[debug] [2026-01-26T21:40:53.102Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_email.svg
+[debug] [2026-01-26T21:40:53.102Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.102Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_email.svg
+[debug] [2026-01-26T21:40:53.102Z] [unzip] Entry: client/assets/provider-icons/auth_service_google.svg (compressed_size=409 bytes, uncompressed_size=720 bytes)
+[debug] [2026-01-26T21:40:53.102Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_google.svg
+[debug] [2026-01-26T21:40:53.102Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.102Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_google.svg
+[debug] [2026-01-26T21:40:53.102Z] [unzip] Entry: client/assets/provider-icons/auth_service_oidc.svg (compressed_size=414 bytes, uncompressed_size=858 bytes)
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Processing entry: client/assets/provider-icons/auth_service_oidc.svg
+[debug] [2026-01-26T21:40:53.103Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons
+[debug] [2026-01-26T21:40:53.103Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/assets/provider-icons/auth_service_oidc.svg
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Entry: client/browserconfig.xml (compressed_size=491 bytes, uncompressed_size=822 bytes)
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Processing entry: client/browserconfig.xml
+[debug] [2026-01-26T21:40:53.103Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.103Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/browserconfig.xml
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Entry: client/favicon-32x32.png (compressed_size=475 bytes, uncompressed_size=475 bytes)
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Processing entry: client/favicon-32x32.png
+[debug] [2026-01-26T21:40:53.103Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Writing file: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/client/favicon-32x32.png
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Entry: server/ (compressed_size=0 bytes, uncompressed_size=0 bytes)
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Processing entry: server/
+[debug] [2026-01-26T21:40:53.103Z] [unzip] mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/server/
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Entry: server/server.mjs.map (compressed_size=217845 bytes, uncompressed_size=944978 bytes)
+[debug] [2026-01-26T21:40:53.103Z] [unzip] Processing entry: server/server.mjs.map
+[debug] [2026-01-26T21:40:53.103Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/server
+[debug] [2026-01-26T21:40:53.103Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/server/server.mjs.map
+[debug] [2026-01-26T21:40:53.105Z] [unzip] Entry: server/server.mjs (compressed_size=276407 bytes, uncompressed_size=933701 bytes)
+[debug] [2026-01-26T21:40:53.105Z] [unzip] Processing entry: server/server.mjs
+[debug] [2026-01-26T21:40:53.105Z] [unzip] else mkdir: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/server
+[debug] [2026-01-26T21:40:53.105Z] [unzip] deflating: /Users/aldoricardorodriguezcortes/.cache/firebase/emulators/ui-v1.15.0/server/server.mjs
+[info] i  functions: Watching "/Users/aldoricardorodriguezcortes/Downloads/always-main/functions" for Cloud Functions... {"metadata":{"emulator":{"name":"functions"},"message":"Watching \"/Users/aldoricardorodriguezcortes/Downloads/always-main/functions\" for Cloud Functions..."}}
+[debug] [2026-01-26T21:40:53.112Z] Validating nodejs source
+[warn] ⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] ⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-01-26T21:40:53.415Z] > [functions] package.json contents: {
+  "name": "always-functions",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@pinecone-database/pinecone": "^2.0.0",
+    "assemblyai": "^4.3.0",
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.5.0",
+    "firebase-tools": "^15.4.0",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
+[debug] [2026-01-26T21:40:53.415Z] Building nodejs source
+[debug] [2026-01-26T21:40:53.415Z] Failed to find version of module node: reached end of search path /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules
+[warn] ⚠  functions: Your requested "node" version "18" doesn't match your global version "20". Using node@20 from host. 
+[info] i  functions: Loaded environment variables from .env. 
+[info] i  functions: You are using a version of firebase-functions SDK (4.9.0) that does not have support for the newest Firebase Extensions features. Please update firebase-functions SDK to >=5.1.0 to use them correctly 
+[debug] [2026-01-26T21:40:53.417Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-01-26T21:40:53.420Z] Found firebase-functions binary at '/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/.bin/firebase-functions'
+[info] Serving at port 8754
+
+[error] PineconeArgumentError: The client configuration must have required property: apiKey.
+    at /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/@pinecone-database/pinecone/dist/validator.js:239:19
+    at Pinecone._validateConfig (/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/@pinecone-database/pinecone/dist/pinecone.js:533:104)
+    at new Pinecone (/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/@pinecone-database/pinecone/dist/pinecone.js:105:14)
+    at Object.<anonymous> (/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/lib/index.js:16:18)
+    at Module._compile (node:internal/modules/cjs/loader:1376:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1435:10)
+    at Module.load (node:internal/modules/cjs/loader:1207:32)
+    at Module._load (node:internal/modules/cjs/loader:1023:12)
+    at Module.require (node:internal/modules/cjs/loader:1235:19)
+    at require (node:internal/modules/helpers:176:18) {
+  cause: undefined
+}
+
+[debug] [2026-01-26T21:40:54.025Z] Got response code 400; body Failed to generate manifest from function source: PineconeArgumentError: The client configuration must have required property: apiKey.
+[error] ⬢  functions: Failed to load function definition from source: FirebaseError: Functions codebase could not be analyzed successfully. It may have a syntax or runtime error {"metadata":{"emulator":{"name":"functions"},"message":"Failed to load function definition from source: FirebaseError: Functions codebase could not be analyzed successfully. It may have a syntax or runtime error"}}
+[debug] [2026-01-26T21:40:59.045Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+│ i  View Emulator UI at http://127.0.0.1:4000/               │
+└─────────────────────────────────────────────────────────────┘
+
+┌───────────┬────────────────┬─────────────────────────────────┐
+│ Emulator  │ Host:Port      │ View in Emulator UI             │
+├───────────┼────────────────┼─────────────────────────────────┤
+│ Functions │ 127.0.0.1:5001 │ http://127.0.0.1:4000/functions │
+└───────────┴────────────────┴─────────────────────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4400
+  Other reserved ports: 4500
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+[debug] [2026-01-26T21:41:54.108Z] ----------------------------------------------------------------------
+[debug] [2026-01-26T21:41:54.110Z] Command:       /usr/local/bin/node /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/.bin/firebase emulators:start --only functions
+[debug] [2026-01-26T21:41:54.110Z] CLI Version:   15.4.0
+[debug] [2026-01-26T21:41:54.110Z] Platform:      darwin
+[debug] [2026-01-26T21:41:54.110Z] Node Version:  v20.11.1
+[debug] [2026-01-26T21:41:54.110Z] Time:          Mon Jan 26 2026 13:41:54 GMT-0800 (Pacific Standard Time)
+[debug] [2026-01-26T21:41:54.110Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-26T21:41:54.907Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] Failed to authenticate, have you run firebase login?
+[warn] ⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI. 
+[info] i  emulators: Starting emulators: functions {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: functions"}}
+[debug] [2026-01-26T21:41:55.021Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-26T21:41:55.021Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2026-01-26T21:41:55.023Z] Found emulator hub locator: {"version":"15.4.0","origins":["http://127.0.0.1:4400","http://[::1]:4400"],"pid":98231}
+[debug] [2026-01-26T21:41:55.024Z] Write emulator hub locator at /var/folders/15/nd9vbvd93wd8zmg844t0tvvr0000gn/T/hub-always-f6dda.json
+[debug] [2026-01-26T21:41:55.121Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-26T21:41:55.122Z] [eventarc] Eventarc Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-26T21:41:55.122Z] [tasks] Cloud Tasks Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-26T21:41:55.122Z] late-assigned ports for functions and eventarc emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"functions":[{"address":"127.0.0.1","family":"IPv4","port":5001}],"eventarc":[{"address":"127.0.0.1","family":"IPv4","port":9299}],"tasks":[{"address":"127.0.0.1","family":"IPv4","port":9499}]},"metadata":{"message":"late-assigned ports for functions and eventarc emulators"}}
+[warn] ⚠  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect {"metadata":{"emulator":{"name":"functions"},"message":"The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect"}}
+[debug] [2026-01-26T21:41:55.123Z] No OAuth tokens found
+[debug] [2026-01-26T21:41:55.123Z] No OAuth tokens found
+[debug] [2026-01-26T21:41:55.123Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-01-26T21:41:55.123Z] Failed to get Admin SDK config for always-f6dda, falling back to cache Failed to get Admin SDK for Firebase project always-f6dda. Please make sure the project exists and your account has permission to access it. {"name":"FirebaseError","children":[],"exit":2,"message":"Failed to get Admin SDK for Firebase project always-f6dda. Please make sure the project exists and your account has permission to access it.","original":{"name":"FirebaseError","children":[],"exit":1,"message":"Failed to authenticate, have you run firebase login?","original":{},"status":500},"status":500}
+[warn] ⚠  functions: Unable to fetch project Admin SDK configuration, Admin SDK behavior in Cloud Functions emulator may be incorrect. {"metadata":{"emulator":{"name":"functions"},"message":"Unable to fetch project Admin SDK configuration, Admin SDK behavior in Cloud Functions emulator may be incorrect."}}
+[info] i  functions: Watching "/Users/aldoricardorodriguezcortes/Downloads/always-main/functions" for Cloud Functions... {"metadata":{"emulator":{"name":"functions"},"message":"Watching \"/Users/aldoricardorodriguezcortes/Downloads/always-main/functions\" for Cloud Functions..."}}
+[debug] [2026-01-26T21:41:55.131Z] Validating nodejs source
+[warn] ⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] ⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-01-26T21:41:55.401Z] > [functions] package.json contents: {
+  "name": "always-functions",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@pinecone-database/pinecone": "^2.0.0",
+    "assemblyai": "^4.3.0",
+    "dotenv": "^17.2.3",
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.5.0",
+    "firebase-tools": "^15.4.0",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
+[debug] [2026-01-26T21:41:55.401Z] Building nodejs source
+[debug] [2026-01-26T21:41:55.401Z] Failed to find version of module node: reached end of search path /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules
+[warn] ⚠  functions: Your requested "node" version "18" doesn't match your global version "20". Using node@20 from host. 
+[info] i  functions: Loaded environment variables from .env. 
+[info] i  functions: You are using a version of firebase-functions SDK (4.9.0) that does not have support for the newest Firebase Extensions features. Please update firebase-functions SDK to >=5.1.0 to use them correctly 
+[debug] [2026-01-26T21:41:55.403Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-01-26T21:41:55.406Z] Found firebase-functions binary at '/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/.bin/firebase-functions'
+[info] Serving at port 8278
+
+[info] [dotenv@17.2.3] injecting env (4) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+
+[debug] [2026-01-26T21:41:55.783Z] Got response from /__/functions.yaml {"endpoints":{"processAudio":{"platform":"gcfv1","availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"eventTrigger":{"eventType":"google.storage.object.finalize","eventFilters":{"resource":"projects/_/buckets/always-f6dda.appspot.com"},"retry":false},"labels":{},"entryPoint":"processAudio"},"generateSummary":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"generateSummary"},"searchTranscripts":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"searchTranscripts"},"chat":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"chat"}},"specVersion":"v1alpha1","requiredAPIs":[]}
+[info] ✔  functions: Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat."}}
+[debug] [2026-01-26T21:42:00.810Z] addStorageTrigger {"eventTrigger":{"eventType":"google.storage.object.finalize","resource":"projects/_/buckets/always-f6dda.appspot.com"}}
+[info] ✔  functions[us-central1-processAudio]: storage function initialized. {"metadata":{"emulator":{"name":"functions"},"message":"storage function initialized."}}
+[info] ✔  functions[us-central1-generateSummary]: http function initialized (http://127.0.0.1:5001/always-f6dda/us-central1/generateSummary). {"metadata":{"emulator":{"name":"functions"},"message":"http function initialized (http://127.0.0.1:5001/always-f6dda/us-central1/generateSummary)."}}
+[info] ✔  functions[us-central1-searchTranscripts]: http function initialized (http://127.0.0.1:5001/always-f6dda/us-central1/searchTranscripts). {"metadata":{"emulator":{"name":"functions"},"message":"http function initialized (http://127.0.0.1:5001/always-f6dda/us-central1/searchTranscripts)."}}
+[info] ✔  functions[us-central1-chat]: http function initialized (http://127.0.0.1:5001/always-f6dda/us-central1/chat). {"metadata":{"emulator":{"name":"functions"},"message":"http function initialized (http://127.0.0.1:5001/always-f6dda/us-central1/chat)."}}
+[debug] [2026-01-26T21:42:00.814Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: . If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+│ i  View Emulator UI at http://127.0.0.1:4000/               │
+└─────────────────────────────────────────────────────────────┘
+
+┌───────────┬────────────────┬─────────────────────────────────┐
+│ Emulator  │ Host:Port      │ View in Emulator UI             │
+├───────────┼────────────────┼─────────────────────────────────┤
+│ Functions │ 127.0.0.1:5001 │ http://127.0.0.1:4000/functions │
+└───────────┴────────────────┴─────────────────────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4400
+  Other reserved ports: 4500
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
