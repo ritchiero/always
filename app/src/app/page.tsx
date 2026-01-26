@@ -1,7 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { onRecordingsChange, uploadAudio } from '@/lib/firebase';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { onRecordingsChange } from '@/lib/firebase';
+import { RealtimeTranscription } from '@/lib/realtime-transcription';
+import { db, storage } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Icon components
 const HomeIcon = () => (
@@ -65,6 +69,12 @@ const SendIcon = () => (
   </svg>
 );
 
+interface TranscriptSegment {
+  text: string;
+  isFinal: boolean;
+  timestamp: number;
+}
+
 export default function Home() {
   const [recordings, setRecordings] = useState<any[]>([]);
   const [selectedRecording, setSelectedRecording] = useState<any | null>(null);
@@ -73,16 +83,19 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
   
-  // Audio recording states
+  // Real-time transcription states
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [currentTranscript, setCurrentTranscript] = useState('');
+  const [finalTranscripts, setFinalTranscripts] = useState<TranscriptSegment[]>([]);
   
+  const transcriptionRef = useRef<RealtimeTranscription | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const unsubscribe = onRecordingsChange((newRecordings) => {
@@ -93,83 +106,119 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
+  const handleTranscript = useCallback((text: string, isFinal: boolean) => {
+    if (isFinal) {
+      setFinalTranscripts(prev => [...prev, { 
+        text, 
+        isFinal: true, 
+        timestamp: Date.now() - startTimeRef.current 
+      }]);
+      setCurrentTranscript('');
+    } else {
+      setCurrentTranscript(text);
+    }
+  }, []);
+
+  const handleError = useCallback((error: Error) => {
+    console.error('Transcription error:', error);
+    setError(error.message);
+  }, []);
+
   const startRecording = async () => {
     try {
       setError(null);
-      console.log('Requesting microphone access...');
+      setFinalTranscripts([]);
+      setCurrentTranscript('');
+      setRecordingTime(0);
+      audioChunksRef.current = [];
+      startTimeRef.current = Date.now();
+
+      // Iniciar transcripción en tiempo real
+      transcriptionRef.current = new RealtimeTranscription(
+        process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY || '',
+        handleTranscript,
+        handleError
+      );
+      await transcriptionRef.current.start();
+
+      // También grabar el audio para guardarlo después
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: 16000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-        }
-      });
-
-      streamRef.current = stream;
-      chunksRef.current = [];
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
         }
       };
 
-      mediaRecorder.onstop = async () => {
-        console.log('Recording stopped, processing...');
-        setIsProcessing(true);
-        
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        console.log('Audio blob created, size:', audioBlob.size);
-        
-        try {
-          const audioUrl = await uploadAudio(audioBlob);
-          console.log('Audio uploaded successfully:', audioUrl);
-        } catch (uploadError) {
-          console.error('Upload failed:', uploadError);
-          setError('Failed to upload recording');
-        }
-        
-        setIsProcessing(false);
-        setRecordingTime(0);
-      };
+      mediaRecorderRef.current.start(1000); // Chunk cada segundo
 
-      mediaRecorder.start(1000);
-      setIsRecording(true);
-      console.log('Recording started');
-
-      intervalRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+      // Timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime(d => d + 1);
       }, 1000);
 
+      setIsRecording(true);
     } catch (err) {
-      console.error('Failed to start recording:', err);
-      setError('Failed to access microphone. Please grant permission.');
+      setError(err instanceof Error ? err.message : 'Failed to start recording');
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
+  const stopRecording = async () => {
+    setIsRecording(false);
+    setIsProcessing(true);
+
+    // Parar timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
+
+    // Parar transcripción
+    if (transcriptionRef.current) {
+      await transcriptionRef.current.stop();
+      transcriptionRef.current = null;
+    }
+
+    // Parar grabación de audio
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      
+      // Esperar a que termine de procesar
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Guardar en Firebase
+    try {
+      const fullTranscript = finalTranscripts.map(s => s.text).join(' ');
+      
+      if (audioChunksRef.current.length > 0 && fullTranscript) {
+        // Subir audio
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioRef = ref(storage, `audio/${Date.now()}.webm`);
+        await uploadBytes(audioRef, audioBlob);
+        const audioUrl = await getDownloadURL(audioRef);
+
+        // Guardar en Firestore
+        await addDoc(collection(db, 'recordings'), {
+          transcript: { text: fullTranscript },
+          segments: finalTranscripts,
+          audioUrl,
+          duration: recordingTime,
+          createdAt: serverTimestamp(),
+          status: 'completed',
+        });
+        
+        console.log('Recording saved successfully');
+      }
+    } catch (err) {
+      console.error('Error saving recording:', err);
+      setError('Failed to save recording');
+    }
+    
+    setIsProcessing(false);
+    setRecordingTime(0);
   };
 
   const formatTime = (seconds: number) => {
@@ -361,9 +410,47 @@ export default function Home() {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'transcription' && (
-            <div className="max-w-3xl">
-              {selectedRecording?.transcript ? (
-                <div className="space-y-4">
+            <div className="max-w-3xl space-y-4">
+              {/* Live Transcription */}
+              {isRecording && (
+                <div className="border border-white/10 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-400 mb-3">LIVE TRANSCRIPTION</h3>
+                  <div className="space-y-2">
+                    {finalTranscripts.map((segment, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <span className="text-xs text-gray-600 mt-1 w-12">
+                          {Math.floor(segment.timestamp / 60000).toString().padStart(2, '0')}:
+                          {Math.floor((segment.timestamp % 60000) / 1000).toString().padStart(2, '0')}
+                        </span>
+                        <p className="text-white/90">{segment.text}</p>
+                      </div>
+                    ))}
+                    
+                    {currentTranscript && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-xs text-gray-600 mt-1 w-12">--:--</span>
+                        <p className="text-white/50 italic">{currentTranscript}</p>
+                      </div>
+                    )}
+                    
+                    {!currentTranscript && finalTranscripts.length === 0 && (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <div className="flex gap-1">
+                          <div className="w-1 h-1 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <div className="w-1 h-1 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <div className="w-1 h-1 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <span className="text-sm">Listening...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Selected Recording Transcript */}
+              {selectedRecording?.transcript && (
+                <div className="border border-white/10 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-gray-400 mb-3">RECORDING TRANSCRIPT</h3>
                   <div className="flex items-start gap-3">
                     <span className="text-xs text-gray-600 mt-1 w-12">
                       {formatDate(selectedRecording.createdAt).split(' ')[1]}
@@ -373,17 +460,16 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-              ) : isRecording ? (
-                <div className="flex items-center gap-2 text-gray-500">
-                  <div className="flex gap-1">
-                    <div className="w-1 h-1 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-1 h-1 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-1 h-1 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                  <span className="text-sm">Listening...</span>
-                </div>
-              ) : (
+              )}
+              
+              {/* Empty State */}
+              {!isRecording && !selectedRecording && (
                 <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </div>
                   <p className="text-gray-500">Select a recording to view transcript, or start recording to begin</p>
                 </div>
               )}
