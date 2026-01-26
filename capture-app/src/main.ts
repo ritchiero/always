@@ -65,6 +65,7 @@ function updateTrayMenu() {
 }
 
 async function toggleRecording() {
+  console.log('toggleRecording called, isRecording:', isRecording);
   if (isRecording) {
     stopRecording();
   } else {
@@ -74,6 +75,7 @@ async function toggleRecording() {
 }
 
 async function startRecording() {
+  console.log('startRecording called');
   // Verificar permisos de micrófono
   const micPermission = systemPreferences.getMediaAccessStatus('microphone');
   if (micPermission !== 'granted') {
@@ -113,6 +115,7 @@ function stopRecording() {
 }
 
 function startAudioRecording() {
+  console.log('startAudioRecording called');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const audioDir = path.join(app.getPath('userData'), 'audio');
   
@@ -121,13 +124,15 @@ function startAudioRecording() {
   }
   
   const audioPath = path.join(audioDir, `audio-${timestamp}.wav`);
+  console.log('Audio will be saved to:', audioPath);
   const fileStream = fs.createWriteStream(audioPath);
   
   audioRecorder = record.record({
     sampleRate: 16000,
     channels: 1,
-    recorder: 'sox', // Requiere sox instalado: brew install sox
+    recorder: '/opt/homebrew/bin/sox', // Ruta completa a sox (Homebrew en Apple Silicon)
   });
+  console.log('Audio recorder started');
   
   audioRecorder.stream().pipe(fileStream);
   
@@ -142,6 +147,7 @@ function startAudioRecording() {
 }
 
 async function startScreenshotCapture() {
+  console.log('startScreenshotCapture called');
   screenshotInterval = setInterval(async () => {
     if (!isRecording) return;
     
