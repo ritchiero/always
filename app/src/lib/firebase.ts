@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, collection, query, orderBy, onSnapshot, QuerySnapshot, DocumentData, addDoc, serverTimestamp } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const firebaseConfig = {
@@ -72,4 +72,69 @@ export function onRecordingsChange(callback: (recordings: any[]) => void) {
     }));
     callback(recordings);
   });
+}
+
+/**
+ * Guarda una grabación con transcripción y audio opcional
+ * Soporta metadata adicional para auto-chunking
+ */
+export async function saveRecording(
+  transcript: string,
+  audioBlob?: Blob,
+  duration?: number,
+  metadata?: {
+    chunkNumber?: number;
+    sessionId?: number;
+    chunkStartTime?: number;
+    chunkEndTime?: number;
+    isAutoSaved?: boolean;
+  }
+): Promise<string> {
+  try {
+    let audioUrl = null;
+
+    // Subir audio si existe
+    if (audioBlob) {
+      const audioRef = ref(storage, `audio/${Date.now()}.webm`);
+      console.log('Subiendo audio a Firebase Storage...');
+      await uploadBytes(audioRef, audioBlob);
+      audioUrl = await getDownloadURL(audioRef);
+      console.log('Audio subido exitosamente:', audioUrl);
+    }
+
+    // Preparar documento con campos base
+    const docData: any = {
+      transcript: { text: transcript },
+      audioUrl,
+      duration: duration || 0,
+      createdAt: serverTimestamp(),
+      status: 'completed',
+    };
+
+    // Agregar metadata de chunking si existe
+    if (metadata?.chunkNumber !== undefined) {
+      docData.chunkNumber = metadata.chunkNumber;
+    }
+    if (metadata?.sessionId !== undefined) {
+      docData.sessionId = metadata.sessionId;
+    }
+    if (metadata?.chunkStartTime !== undefined) {
+      docData.chunkStartTime = metadata.chunkStartTime;
+    }
+    if (metadata?.chunkEndTime !== undefined) {
+      docData.chunkEndTime = metadata.chunkEndTime;
+    }
+    if (metadata?.isAutoSaved !== undefined) {
+      docData.isAutoSaved = metadata.isAutoSaved;
+    }
+
+    // Guardar en Firestore
+    const docRef = await addDoc(collection(db, 'recordings'), docData);
+    console.log('Grabación guardada con ID:', docRef.id, metadata?.chunkNumber ? `(Chunk ${metadata.chunkNumber})` : '');
+    
+    return docRef.id;
+  } catch (error) {
+    console.error('Error guardando grabación:', error);
+    throw error;
+  }
 }
