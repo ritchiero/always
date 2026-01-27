@@ -1,8 +1,8 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator, collection, query, orderBy, onSnapshot, QuerySnapshot, DocumentData } from 'firebase/firestore';
-import { getAuth, connectAuthEmulator, GoogleAuthProvider } from 'firebase/auth';
-import { getStorage, connectStorageEmulator, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getFunctions,connectFunctionsEmulator } from 'firebase/functions';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,12 +21,14 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Conectar a emuladores en desarrollo
-if (process.env.NEXT_PUBLIC_USE_EMULATORS === 'true' && typeof window !== 'undefined') {
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
-  connectAuthEmulator(auth, 'http://127.0.0.1:9099');
-  connectStorageEmulator(storage, '127.0.0.1', 9199);
-  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+// Solo conectar Functions al emulador (Firestore y Storage usan producción)
+if (typeof window !== 'undefined') {
+  try {
+    connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+    console.log('Connected to Functions emulator');
+  } catch (e) {
+    console.log('Functions emulator connection skipped');
+  }
 }
 
 // Audio recording functions

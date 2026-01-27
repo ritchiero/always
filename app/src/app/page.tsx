@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { onRecordingsChange } from '@/lib/firebase';
 import { RealtimeTranscription } from '@/lib/realtime-transcription';
 import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Icon components
@@ -98,11 +98,20 @@ export default function Home() {
   const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    const unsubscribe = onRecordingsChange((newRecordings) => {
-      console.log('Recordings updated:', newRecordings);
-      setRecordings(newRecordings);
+    // Real-time listener para grabaciones desde Firestore
+    const q = query(collection(db, 'recordings'), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const recordingsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setRecordings(recordingsData);
+      console.log('Loaded recordings:', recordingsData.length);
+    }, (error) => {
+      console.error('Error loading recordings:', error);
     });
-
+    
     return () => unsubscribe();
   }, []);
 
@@ -123,6 +132,35 @@ export default function Home() {
     console.error('Transcription error:', error);
     setError(error.message);
   }, []);
+
+  // Función para guardar la grabación
+  const saveRecording = async (transcript: string, audioBlob?: Blob) => {
+    try {
+      let audioUrl = null;
+      
+      // Subir audio si existe
+      if (audioBlob) {
+        const audioRef = ref(storage, `audio/${Date.now()}.webm`);
+        await uploadBytes(audioRef, audioBlob);
+        audioUrl = await getDownloadURL(audioRef);
+      }
+      
+      // Guardar en Firestore
+      const docRef = await addDoc(collection(db, 'recordings'), {
+        transcript: { text: transcript },
+        audioUrl,
+        duration: recordingTime,
+        createdAt: serverTimestamp(),
+        status: 'completed',
+      });
+      
+      console.log('Recording saved with ID:', docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      throw error;
+    }
+  };
 
   const startRecording = async () => {
     try {
@@ -192,23 +230,12 @@ export default function Home() {
     try {
       const fullTranscript = finalTranscripts.map(s => s.text).join(' ');
       
-      if (audioChunksRef.current.length > 0 && fullTranscript) {
-        // Subir audio
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const audioRef = ref(storage, `audio/${Date.now()}.webm`);
-        await uploadBytes(audioRef, audioBlob);
-        const audioUrl = await getDownloadURL(audioRef);
-
-        // Guardar en Firestore
-        await addDoc(collection(db, 'recordings'), {
-          transcript: { text: fullTranscript },
-          segments: finalTranscripts,
-          audioUrl,
-          duration: recordingTime,
-          createdAt: serverTimestamp(),
-          status: 'completed',
-        });
+      if (fullTranscript) {
+        const audioBlob = audioChunksRef.current.length > 0 
+          ? new Blob(audioChunksRef.current, { type: 'audio/webm' })
+          : undefined;
         
+        await saveRecording(fullTranscript, audioBlob);
         console.log('Recording saved successfully');
       }
     } catch (err) {

@@ -1,6 +1,5 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
-
-const ASSEMBLYAI_REALTIME_URL = 'wss://api.assemblyai.com/v2/realtime/ws';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase';
 
 export class RealtimeTranscription {
   private socket: WebSocket | null = null;
@@ -15,15 +14,16 @@ export class RealtimeTranscription {
 
   async start() {
     try {
-      // Obtener token temporal desde Cloud Function
-      const functions = getFunctions();
-      const getToken = httpsCallable(functions, 'getAssemblyAIToken');
-      const result = await getToken();
-      const token = (result.data as { token: string }).token;
+      console.log('Getting Deepgram API key...');
+      const getKey = httpsCallable(functions, 'getDeepgramKey');
+      const result = await getKey();
+      const apiKey = (result.data as { apiKey: string }).apiKey;
 
-      if (!token) {
-        throw new Error('Failed to get AssemblyAI token');
+      if (!apiKey || apiKey === 'YOUR_DEEPGRAM_API_KEY_HERE') {
+        throw new Error('Deepgram API key not configured');
       }
+      
+      console.log('API key received, requesting microphone...');
 
       // Obtener acceso al micrófono
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -34,91 +34,99 @@ export class RealtimeTranscription {
           noiseSuppression: true,
         },
       });
+      
+      console.log('Microphone access granted, connecting to Deepgram...');
 
-      // Conectar WebSocket con token temporal
-      const url = `${ASSEMBLYAI_REALTIME_URL}?sample_rate=16000`;
-      this.socket = new WebSocket(url);
+      // Conectar a Deepgram WebSocket
+      const url = `wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=1&model=nova-2&language=es&punctuate=true&interim_results=true`;
+      
+      this.socket = new WebSocket(url, ['token', apiKey]);
 
       this.socket.onopen = () => {
-        console.log('AssemblyAI WebSocket connected');
-        // Enviar token de autenticación
-        this.socket?.send(JSON.stringify({ token }));
-        this.startAudioProcessing();
+        console.log('Deepgram WebSocket connected');
+        this.startAudioCapture();
       };
 
       this.socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           
-          if (data.error) {
-            this.onError(new Error(data.error));
-            return;
-          }
-
-          if (data.message_type === 'PartialTranscript' && data.text) {
-            this.onTranscript(data.text, false);
-          } else if (data.message_type === 'FinalTranscript' && data.text) {
-            this.onTranscript(data.text, true);
+          if (data.type === 'Results') {
+            const transcript = data.channel?.alternatives?.[0]?.transcript;
+            const isFinal = data.is_final;
+            
+            if (transcript) {
+              console.log(`Transcript (${isFinal ? 'final' : 'partial'}):`, transcript);
+              this.onTranscript(transcript, isFinal);
+            }
+          } else if (data.type === 'Metadata') {
+            console.log('Deepgram session started:', data.request_id);
+          } else if (data.type === 'Error') {
+            console.error('Deepgram error:', data);
+            this.onError(new Error(data.message || 'Deepgram error'));
           }
         } catch (e) {
-          console.error('Error parsing message:', e);
+          console.error('Error parsing Deepgram message:', e);
         }
       };
 
       this.socket.onerror = (error) => {
         console.error('WebSocket error:', error);
-        this.onError(new Error('WebSocket connection error'));
+        this.onError(new Error('WebSocket connection failed'));
       };
 
       this.socket.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
+        console.log('WebSocket closed - Code:', event.code, 'Reason:', event.reason);
       };
 
     } catch (error) {
+      console.error('Start error:', error);
       this.onError(error as Error);
     }
   }
 
-  private startAudioProcessing() {
-    if (!this.stream) return;
-
-    this.audioContext = new AudioContext({ sampleRate: 16000 });
-    const source = this.audioContext.createMediaStreamSource(this.stream);
-    this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-
-    this.processor.onaudioprocess = (e) => {
-      if (this.socket?.readyState === WebSocket.OPEN) {
-        const inputData = e.inputBuffer.getChannelData(0);
-        
-        // Convertir Float32Array a Int16Array (PCM16)
-        const pcm16 = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[i]));
-          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-        }
-        
-        // Convertir a base64 y enviar
-        const base64 = this.arrayBufferToBase64(pcm16.buffer);
-        this.socket.send(JSON.stringify({ audio_data: base64 }));
-      }
-    };
-
-    source.connect(this.processor);
-    this.processor.connect(this.audioContext.destination);
-  }
-
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
+  private startAudioCapture() {
+    if (!this.stream) {
+      console.error('No audio stream available');
+      return;
     }
-    return btoa(binary);
+
+    try {
+      // Usar AudioContext para obtener PCM16
+      this.audioContext = new AudioContext({ sampleRate: 16000 });
+      const source = this.audioContext.createMediaStreamSource(this.stream);
+      this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+
+      this.processor.onaudioprocess = (e) => {
+        if (this.socket?.readyState === WebSocket.OPEN) {
+          const inputData = e.inputBuffer.getChannelData(0);
+          
+          // Convertir a PCM16
+          const pcm16 = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            const s = Math.max(-1, Math.min(1, inputData[i]));
+            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+          
+          // Enviar como binary
+          this.socket.send(pcm16.buffer);
+        }
+      };
+
+      source.connect(this.processor);
+      this.processor.connect(this.audioContext.destination);
+      console.log('Audio capture started');
+    } catch (error) {
+      console.error('Error starting audio capture:', error);
+    }
   }
 
   async stop(): Promise<void> {
+    console.log('Stopping transcription...');
+    
     if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ terminate_session: true }));
+      // Enviar mensaje de cierre
+      this.socket.send(JSON.stringify({ type: 'CloseStream' }));
       this.socket.close();
     }
     this.socket = null;
@@ -132,8 +140,10 @@ export class RealtimeTranscription {
       this.audioContext = null;
     }
     if (this.stream) {
-      this.stream.getTracks().forEach((track) => track.stop());
+      this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
     }
+    
+    console.log('Transcription stopped');
   }
 }
