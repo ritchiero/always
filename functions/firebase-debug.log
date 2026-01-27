@@ -334,3 +334,176 @@ Issues? Report them at https://github.com/firebase/firebase-tools/issues and att
 
 Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
  
+[debug] [2026-01-27T00:52:39.468Z] File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/src/index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/src/index.ts changed, reloading triggers"}}
+[debug] [2026-01-27T00:52:40.483Z] Validating nodejs source
+[warn] ⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] ⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-01-27T00:52:41.279Z] > [functions] package.json contents: {
+  "name": "always-functions",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@pinecone-database/pinecone": "^2.0.0",
+    "assemblyai": "^4.3.0",
+    "dotenv": "^17.2.3",
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.5.0",
+    "firebase-tools": "^15.4.0",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
+[debug] [2026-01-27T00:52:41.279Z] Building nodejs source
+[debug] [2026-01-27T00:52:41.279Z] Failed to find version of module node: reached end of search path /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules
+[warn] ⚠  functions: Your requested "node" version "18" doesn't match your global version "20". Using node@20 from host. 
+[info] i  functions: Loaded environment variables from .env. 
+[info] i  functions: You are using a version of firebase-functions SDK (4.9.0) that does not have support for the newest Firebase Extensions features. Please update firebase-functions SDK to >=5.1.0 to use them correctly 
+[debug] [2026-01-27T00:52:41.294Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-01-27T00:52:41.299Z] Found firebase-functions binary at '/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/.bin/firebase-functions'
+[info] Serving at port 8404
+
+[info] [dotenv@17.2.3] injecting env (4) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+
+[debug] [2026-01-27T00:52:41.917Z] Got response from /__/functions.yaml {"endpoints":{"processAudio":{"platform":"gcfv1","availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"eventTrigger":{"eventType":"google.storage.object.finalize","eventFilters":{"resource":"projects/_/buckets/always-f6dda.appspot.com"},"retry":false},"labels":{},"entryPoint":"processAudio"},"generateSummary":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"generateSummary"},"searchTranscripts":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"searchTranscripts"},"chat":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"chat"}},"specVersion":"v1alpha1","requiredAPIs":[]}
+[info] ✔  functions: Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat."}}
+[debug] [2026-01-27T00:52:57.644Z] File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/src/index.ts changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/src/index.ts changed, reloading triggers"}}
+[debug] [2026-01-27T00:52:58.647Z] Validating nodejs source
+[warn] ⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] ⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-01-27T00:52:59.024Z] > [functions] package.json contents: {
+  "name": "always-functions",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@pinecone-database/pinecone": "^2.0.0",
+    "assemblyai": "^4.3.0",
+    "dotenv": "^17.2.3",
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.5.0",
+    "firebase-tools": "^15.4.0",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
+[debug] [2026-01-27T00:52:59.024Z] Building nodejs source
+[debug] [2026-01-27T00:52:59.025Z] Failed to find version of module node: reached end of search path /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules
+[warn] ⚠  functions: Your requested "node" version "18" doesn't match your global version "20". Using node@20 from host. 
+[info] i  functions: Loaded environment variables from .env. 
+[info] i  functions: You are using a version of firebase-functions SDK (4.9.0) that does not have support for the newest Firebase Extensions features. Please update firebase-functions SDK to >=5.1.0 to use them correctly 
+[debug] [2026-01-27T00:52:59.025Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-01-27T00:52:59.026Z] Found firebase-functions binary at '/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/.bin/firebase-functions'
+[info] Serving at port 8536
+
+[info] [dotenv@17.2.3] injecting env (4) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+
+[debug] [2026-01-27T00:52:59.527Z] Got response from /__/functions.yaml {"endpoints":{"processAudio":{"platform":"gcfv1","availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"eventTrigger":{"eventType":"google.storage.object.finalize","eventFilters":{"resource":"projects/_/buckets/always-f6dda.appspot.com"},"retry":false},"labels":{},"entryPoint":"processAudio"},"generateSummary":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"generateSummary"},"searchTranscripts":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"searchTranscripts"},"chat":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"chat"}},"specVersion":"v1alpha1","requiredAPIs":[]}
+[info] ✔  functions: Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat."}}
+[debug] [2026-01-27T00:53:48.627Z] File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/package.json changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/package.json changed, reloading triggers"}}
+[debug] [2026-01-27T00:53:48.734Z] File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/package-lock.json changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/package-lock.json changed, reloading triggers"}}
+[debug] [2026-01-27T00:53:49.739Z] Validating nodejs source
+[warn] ⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] ⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-01-27T00:53:50.090Z] > [functions] package.json contents: {
+  "name": "always-functions",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@pinecone-database/pinecone": "^2.0.0",
+    "assemblyai": "^4.3.0",
+    "dotenv": "^17.2.3",
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.5.0",
+    "firebase-tools": "^15.4.0",
+    "node-fetch": "^2.7.0",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
+[debug] [2026-01-27T00:53:50.090Z] Building nodejs source
+[debug] [2026-01-27T00:53:50.090Z] Failed to find version of module node: reached end of search path /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules
+[warn] ⚠  functions: Your requested "node" version "18" doesn't match your global version "20". Using node@20 from host. 
+[info] i  functions: Loaded environment variables from .env. 
+[info] i  functions: You are using a version of firebase-functions SDK (4.9.0) that does not have support for the newest Firebase Extensions features. Please update firebase-functions SDK to >=5.1.0 to use them correctly 
+[debug] [2026-01-27T00:53:50.093Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-01-27T00:53:50.095Z] Found firebase-functions binary at '/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/.bin/firebase-functions'
+[info] Serving at port 8991
+
+[info] [dotenv@17.2.3] injecting env (4) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+
+[debug] [2026-01-27T00:53:50.654Z] Got response from /__/functions.yaml {"endpoints":{"processAudio":{"platform":"gcfv1","availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"eventTrigger":{"eventType":"google.storage.object.finalize","eventFilters":{"resource":"projects/_/buckets/always-f6dda.appspot.com"},"retry":false},"labels":{},"entryPoint":"processAudio"},"generateSummary":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"generateSummary"},"searchTranscripts":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"searchTranscripts"},"chat":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"chat"}},"specVersion":"v1alpha1","requiredAPIs":[]}
+[info] ✔  functions: Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat."}}
+[debug] [2026-01-27T00:56:15.342Z] File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/lib/index.js.map changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/lib/index.js.map changed, reloading triggers"}}
+[debug] [2026-01-27T00:56:15.400Z] File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/lib/index.js changed, reloading triggers {"metadata":{"emulator":{"name":"functions"},"message":"File /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/lib/index.js changed, reloading triggers"}}
+[debug] [2026-01-27T00:56:16.408Z] Validating nodejs source
+[warn] ⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] ⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-01-27T00:56:16.897Z] > [functions] package.json contents: {
+  "name": "always-functions",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@pinecone-database/pinecone": "^2.0.0",
+    "assemblyai": "^4.3.0",
+    "dotenv": "^17.2.3",
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.5.0",
+    "firebase-tools": "^15.4.0",
+    "node-fetch": "^2.7.0",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
+[debug] [2026-01-27T00:56:16.897Z] Building nodejs source
+[debug] [2026-01-27T00:56:16.897Z] Failed to find version of module node: reached end of search path /Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules
+[warn] ⚠  functions: Your requested "node" version "18" doesn't match your global version "20". Using node@20 from host. 
+[info] i  functions: Loaded environment variables from .env. 
+[info] i  functions: You are using a version of firebase-functions SDK (4.9.0) that does not have support for the newest Firebase Extensions features. Please update firebase-functions SDK to >=5.1.0 to use them correctly 
+[debug] [2026-01-27T00:56:16.901Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-01-27T00:56:16.905Z] Found firebase-functions binary at '/Users/aldoricardorodriguezcortes/Downloads/always-main/functions/node_modules/.bin/firebase-functions'
+[info] Serving at port 8642
+
+[info] [dotenv@17.2.3] injecting env (4) from .env -- tip: ⚙️  override existing env vars with { override: true }
+
+[debug] [2026-01-27T00:56:17.707Z] Got response from /__/functions.yaml {"endpoints":{"processAudio":{"platform":"gcfv1","availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"eventTrigger":{"eventType":"google.storage.object.finalize","eventFilters":{"resource":"projects/_/buckets/always-f6dda.appspot.com"},"retry":false},"labels":{},"entryPoint":"processAudio"},"generateSummary":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"generateSummary"},"searchTranscripts":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"searchTranscripts"},"chat":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"chat"},"getAssemblyAIToken":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"getAssemblyAIToken"}},"specVersion":"v1alpha1","requiredAPIs":[]}
+[info] ✔  functions: Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat, getAssemblyAIToken. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: processAudio, generateSummary, searchTranscripts, chat, getAssemblyAIToken."}}
+[info] ✔  functions[us-central1-getAssemblyAIToken]: http function initialized (http://127.0.0.1:5001/always-f6dda/us-central1/getAssemblyAIToken). {"metadata":{"emulator":{"name":"functions"},"message":"http function initialized (http://127.0.0.1:5001/always-f6dda/us-central1/getAssemblyAIToken)."}}

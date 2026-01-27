@@ -5,6 +5,7 @@ import { AssemblyAI } from 'assemblyai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import OpenAI from 'openai';
 import * as dotenv from 'dotenv';
+import fetch from 'node-fetch';
 
 // Load environment variables
 dotenv.config();
@@ -145,4 +146,24 @@ Responde de forma concisa y útil en español.`,
   });
   
   return response.content[0].type === 'text' ? response.content[0].text : '';
+});
+
+// Obtener token temporal para AssemblyAI Real-time
+export const getAssemblyAIToken = functions.https.onCall(async (data, context) => {
+  try {
+    const response = await fetch('https://api.assemblyai.com/v2/realtime/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': process.env.ASSEMBLYAI_API_KEY || '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ expires_in: 3600 }),
+    });
+    
+    const result = await response.json();
+    return { token: result.token };
+  } catch (error) {
+    console.error('Error getting AssemblyAI token:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to get AssemblyAI token');
+  }
 });

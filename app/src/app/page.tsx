@@ -135,7 +135,6 @@ export default function Home() {
 
       // Iniciar transcripción en tiempo real
       transcriptionRef.current = new RealtimeTranscription(
-        process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY || '',
         handleTranscript,
         handleError
       );
