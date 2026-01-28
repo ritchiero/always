@@ -2,7 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, query, orderBy, onSnapshot, QuerySnapshot, DocumentData, addDoc, serverTimestamp } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,15 +21,8 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Solo conectar Functions al emulador (Firestore y Storage usan producción)
-if (typeof window !== 'undefined') {
-  try {
-    connectFunctionsEmulator(functions, '127.0.0.1', 5001);
-    console.log('Connected to Functions emulator');
-  } catch (e) {
-    console.log('Functions emulator connection skipped');
-  }
-}
+// Production mode - no emulators
+console.log('Firebase initialized - Production mode');
 
 // Audio recording functions
 export async function uploadAudio(audioBlob: Blob): Promise<string> {
