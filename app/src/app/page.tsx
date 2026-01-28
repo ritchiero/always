@@ -505,6 +505,7 @@ export default function Home() {
     try {
       setIsReprocessing(true);
       setReprocessResult(null);
+      setError(null); // Limpiar error previo
       console.log('Iniciando reprocesamiento de grabaciones...');
 
       const reprocessFn = httpsCallable(functions, 'reprocessUnanalyzedRecordings');
@@ -513,9 +514,30 @@ export default function Home() {
       const data = result.data as { total: number; processed: number; failed: number };
       setReprocessResult(data);
       console.log('Reprocesamiento completado:', data);
-    } catch (err) {
+      
+      // Mostrar mensaje de éxito
+      if (data.total === 0) {
+        setError('No hay grabaciones pendientes de procesar');
+      } else if (data.processed > 0) {
+        // No es realmente un error, pero usamos el campo para mostrar info
+        setTimeout(() => setError(null), 5000); // Limpiar después de 5 segundos
+      }
+    } catch (err: any) {
       console.error('Error reprocesando grabaciones:', err);
-      setError(err instanceof Error ? err.message : 'Error al reprocesar');
+      
+      // Mejorar mensaje de error
+      let errorMessage = 'Error al reprocesar grabaciones';
+      if (err.code === 'functions/unauthenticated') {
+        errorMessage = 'Error de autenticación. Verifica tu configuración de Firebase.';
+      } else if (err.code === 'functions/not-found') {
+        errorMessage = 'Función no encontrada. Verifica que las Cloud Functions estén desplegadas.';
+      } else if (err.code === 'functions/internal') {
+        errorMessage = 'Error interno en la función. Revisa los logs de Firebase.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsReprocessing(false);
     }
@@ -1260,9 +1282,22 @@ export default function Home() {
                     </span>
                   </div>
                   {reprocessResult && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Last: {reprocessResult.processed}/{reprocessResult.total} processed
-                      {reprocessResult.failed > 0 && ` (${reprocessResult.failed} failed)`}
+                    <div className={`text-xs mt-1 ${
+                      reprocessResult.failed === 0 && reprocessResult.processed > 0
+                        ? 'text-green-400'
+                        : reprocessResult.failed > 0
+                        ? 'text-red-400'
+                        : 'text-gray-500'
+                    }`}>
+                      {reprocessResult.total === 0 ? (
+                        '✓ No pending recordings'
+                      ) : (
+                        <>
+                          {reprocessResult.failed === 0 && reprocessResult.processed > 0 ? '✓ ' : ''}
+                          Last: {reprocessResult.processed}/{reprocessResult.total} processed
+                          {reprocessResult.failed > 0 && ` (${reprocessResult.failed} failed)`}
+                        </>
+                      )}
                     </div>
                   )}
                 </button>

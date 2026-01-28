@@ -13,11 +13,48 @@ admin.initializeApp();
 const db = admin.firestore();
 const storage = admin.storage();
 
-// Inicializar clientes
+// Inicializar clientes - lazy initialization para secrets
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const assemblyai = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY! });
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// OpenAI client - lazy initialization porque usa Firebase Secret
+let openaiClient: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  // #region agent log
+  console.log('[DEBUG-HYPC] getOpenAI called:', JSON.stringify({hasClient:!!openaiClient,envKeys:Object.keys(process.env).length,envVarsList:Object.keys(process.env).slice(0,20)}));
+  // #endregion
+  
+  if (!openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    
+    // #region agent log
+    console.log('[DEBUG-HYPABE] API key details:', JSON.stringify({hasKey:!!apiKey,keyType:typeof apiKey,keyLength:apiKey?.length || 0,keyFirstChars:apiKey?.substring(0,15) || 'EMPTY',keyLastChars:apiKey?.substring(apiKey.length-8) || 'EMPTY',containsNewline:apiKey?.includes('\n'),containsSpace:apiKey?.includes(' '),trimmedLength:apiKey?.trim().length || 0}));
+    // #endregion
+    
+    if (!apiKey) {
+      // #region agent log
+      console.log('[DEBUG-HYPBE] API key is EMPTY, all env vars:', JSON.stringify(Object.keys(process.env)));
+      // #endregion
+      throw new Error('OPENAI_API_KEY not configured');
+    }
+    
+    // Trim whitespace/newlines from API key
+    const cleanedApiKey = apiKey.trim();
+    
+    // #region agent log
+    console.log('[DEBUG-HYPABE] After trim:', JSON.stringify({originalLength:apiKey.length,cleanedLength:cleanedApiKey.length,different:apiKey !== cleanedApiKey}));
+    // #endregion
+    
+    openaiClient = new OpenAI({ apiKey: cleanedApiKey });
+    console.log('OpenAI client initialized with key:', cleanedApiKey.substring(0, 10) + '...');
+    
+    // #region agent log
+    console.log('[DEBUG-HYPC] OpenAI client created successfully');
+    // #endregion
+  }
+  return openaiClient;
+}
 
 // Procesar audio cuando se sube a Storage
 export const processAudio = functions.storage
@@ -47,7 +84,7 @@ export const processAudio = functions.storage
     });
     
     // Generar embeddings y guardar en Pinecone
-    const embedding = await openai.embeddings.create({
+    const embedding = await getOpenAI().embeddings.create({
       model: 'text-embedding-3-small',
       input: transcript.text || '',
     });
@@ -104,7 +141,7 @@ Responde en JSON con esta estructura:
 export const searchTranscripts = functions.https.onCall(async (data, context) => {
   const { query } = data;
   
-  const embedding = await openai.embeddings.create({
+  const embedding = await getOpenAI().embeddings.create({
     model: 'text-embedding-3-small',
     input: query,
   });
@@ -165,7 +202,12 @@ export const getDeepgramKey = functions.https.onCall(async (data, context) => {
  * Procesa un recording cuando se crea en Firestore
  * Usa GPT-4o-mini para extraer: resumen, participantes, action items, temas
  */
-export const processRecording = functions.firestore
+export const processRecording = functions
+  .runWith({
+    secrets: ['OPENAI_API_KEY'],
+    timeoutSeconds: 60,
+  })
+  .firestore
   .document('recordings/{recordingId}')
   .onCreate(async (snapshot, context) => {
     const recordingId = context.params.recordingId;
@@ -182,7 +224,7 @@ export const processRecording = functions.firestore
 
     try {
       // Usar GPT-4o-mini para análisis (barato y rápido)
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
@@ -264,7 +306,16 @@ Responde en JSON:
 /**
  * Función callable para reprocesar recordings existentes que no tienen análisis
  */
-export const reprocessUnanalyzedRecordings = functions.https.onCall(async (data, context) => {
+export const reprocessUnanalyzedRecordings = functions
+  .runWith({
+    secrets: ['OPENAI_API_KEY'],
+    timeoutSeconds: 540, // 9 minutos
+  })
+  .https.onCall(async (data, context) => {
+  // #region agent log
+  console.log('[DEBUG-HYPD] reprocessUnanalyzedRecordings called:', JSON.stringify({hasContext:!!context,envKeysCount:Object.keys(process.env).length,hasOpenAIKey:!!process.env.OPENAI_API_KEY,openAIKeyLength:process.env.OPENAI_API_KEY?.length || 0}));
+  // #endregion
+  
   console.log('Starting reprocess of unanalyzed recordings...');
 
   // Obtener recordings sin análisis
@@ -287,7 +338,11 @@ export const reprocessUnanalyzedRecordings = functions.https.onCall(async (data,
     }
 
     try {
-      const completion = await openai.chat.completions.create({
+      // #region agent log
+      console.log('[DEBUG-HYPCD] Before getOpenAI call for doc:', doc.id, 'transcriptLength:', transcript.length);
+      // #endregion
+      
+      const completion = await getOpenAI().chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
@@ -336,6 +391,10 @@ JSON:`
       console.log(`Processed ${doc.id}`);
 
     } catch (error) {
+      // #region agent log
+      console.log('[DEBUG-HYPABCDE] Error processing doc:', doc.id, 'Error:', JSON.stringify({errorName:error instanceof Error ? error.name : typeof error,errorMessage:error instanceof Error ? error.message : String(error),errorCause:(error as any)?.cause?.toString().substring(0,300),errorStack:(error as any)?.stack?.substring(0,500)}));
+      // #endregion
+      
       console.error(`Error processing ${doc.id}:`, error);
       results.push({ id: doc.id, success: false, error: String(error) });
     }
