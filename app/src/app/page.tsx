@@ -51,6 +51,12 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const DevIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+  </svg>
+);
+
 const ChatIcon = () => (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -84,6 +90,14 @@ interface TranscriptSegment {
 export default function Home() {
   const [recordings, setRecordings] = useState<any[]>([]);
   const [selectedRecording, setSelectedRecording] = useState<any | null>(null);
+  
+  // #region agent log
+  useEffect(() => {
+    if (selectedRecording) {
+      fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:89',message:'selectedRecording changed',data:{id:selectedRecording.id,hasSummary:!!selectedRecording.summary,hasAnalysis:!!selectedRecording.analysis,hasAnalysisSummary:!!selectedRecording.analysis?.summary,summaryValue:selectedRecording.summary?.substring(0,50),analysisSummaryValue:selectedRecording.analysis?.summary?.substring(0,50),allKeys:Object.keys(selectedRecording)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C,D'})}).catch(()=>{});
+    }
+  }, [selectedRecording]);
+  // #endregion
   const [activeNav, setActiveNav] = useState('home');
   const [activeTab, setActiveTab] = useState('transcription');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -146,6 +160,14 @@ export default function Home() {
         id: doc.id,
         ...doc.data(),
       }));
+      
+      // #region agent log
+      if (recordingsData.length > 0) {
+        const sample = recordingsData[0];
+        fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:153',message:'Recordings loaded from Firestore',data:{count:recordingsData.length,sampleId:sample.id,sampleKeys:Object.keys(sample),hasSummary:!!sample.summary,hasAnalysis:!!sample.analysis,hasAnalysisSummary:!!sample.analysis?.summary,status:sample.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C,D'})}).catch(()=>{});
+      }
+      // #endregion
+      
       setRecordings(recordingsData);
       console.log('Loaded recordings:', recordingsData.length);
     }, (error) => {
@@ -792,6 +814,7 @@ export default function Home() {
     { id: 'search', icon: SearchIcon, label: 'Search' },
     { id: 'insights', icon: InsightsIcon, label: 'Insights' },
     { id: 'settings', icon: SettingsIcon, label: 'Settings' },
+    { id: 'dev', icon: DevIcon, label: 'Product Dev' },
   ];
 
   const tabs = [
@@ -903,7 +926,12 @@ export default function Home() {
                             <div
                               key={chunk.id}
                               className="p-2 rounded bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                              onClick={() => setSelectedRecording(chunk)}
+                              onClick={() => {
+                                // #region agent log
+                                fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:922',message:'Chunk clicked',data:{id:chunk.id,hasSummary:!!chunk.summary,hasAnalysis:!!chunk.analysis,hasAnalysisSummary:!!chunk.analysis?.summary,keys:Object.keys(chunk)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+                                // #endregion
+                                setSelectedRecording(chunk);
+                              }}
                             >
                               <div className="flex items-start justify-between mb-1">
                                 <div className="flex items-center gap-2">
@@ -945,7 +973,12 @@ export default function Home() {
                       <div 
                         key={recording.id} 
                         className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                        onClick={() => setSelectedRecording(recording)}
+                        onClick={() => {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:964',message:'Recording clicked',data:{id:recording.id,hasSummary:!!recording.summary,hasAnalysis:!!recording.analysis,hasAnalysisSummary:!!recording.analysis?.summary,keys:Object.keys(recording),status:recording.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+                          // #endregion
+                          setSelectedRecording(recording);
+                        }}
                       >
                         <div className="flex justify-between items-start mb-1">
                           <h3 className="text-sm font-medium truncate">
@@ -977,6 +1010,289 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Dev/Product View */}
+      {activeNav === 'dev' ? (
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <div className="p-6 space-y-6">
+            {/* Header */}
+            <div className="border-b border-white/10 pb-4">
+              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                <span className="text-purple-500">⚡</span> Always - Product Development
+              </h1>
+              <p className="text-gray-500 mt-1">Estado del proyecto y arquitectura</p>
+            </div>
+
+            {/* Architecture Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Tech Stack */}
+              <div className="border border-white/10 rounded-lg p-4">
+                <h2 className="text-sm font-medium text-purple-400 mb-4 flex items-center gap-2">
+                  <span>🏗️</span> ARQUITECTURA
+                </h2>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-gray-300">Frontend</span>
+                    <span className="text-xs text-blue-400">Next.js 14 + React</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-gray-300">Backend</span>
+                    <span className="text-xs text-orange-400">Firebase Functions (Node.js)</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-gray-300">Database</span>
+                    <span className="text-xs text-yellow-400">Firestore</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-gray-300">Storage</span>
+                    <span className="text-xs text-green-400">Firebase Storage</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-gray-300">Transcription</span>
+                    <span className="text-xs text-cyan-400">Deepgram (Real-time)</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-gray-300">AI Analysis</span>
+                    <span className="text-xs text-pink-400">GPT-4o-mini</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-gray-300">Vector DB</span>
+                    <span className="text-xs text-indigo-400">Pinecone</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Features Status */}
+              <div className="border border-white/10 rounded-lg p-4">
+                <h2 className="text-sm font-medium text-green-400 mb-4 flex items-center gap-2">
+                  <span>✅</span> ESTADO DE FEATURES
+                </h2>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="text-gray-300 flex-1">Transcripción en tiempo real</span>
+                    <span className="text-xs text-green-400">Completo</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="text-gray-300 flex-1">Auto-chunking (15 min)</span>
+                    <span className="text-xs text-green-400">Completo</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="text-gray-300 flex-1">Voice Activity Detection</span>
+                    <span className="text-xs text-green-400">Completo</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2">
+                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                    <span className="text-gray-300 flex-1">Análisis con GPT-4o-mini</span>
+                    <span className="text-xs text-yellow-400">En pruebas</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2">
+                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                    <span className="text-gray-300 flex-1">Reprocessing masivo</span>
+                    <span className="text-xs text-yellow-400">En pruebas</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2">
+                    <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                    <span className="text-gray-300 flex-1">Búsqueda semántica (Pinecone)</span>
+                    <span className="text-xs text-gray-500">Pendiente</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2">
+                    <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                    <span className="text-gray-300 flex-1">Chat con contexto (Claude)</span>
+                    <span className="text-xs text-gray-500">Pendiente</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cloud Functions */}
+            <div className="border border-white/10 rounded-lg p-4">
+              <h2 className="text-sm font-medium text-orange-400 mb-4 flex items-center gap-2">
+                <span>☁️</span> CLOUD FUNCTIONS
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-white">processRecording</span>
+                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">Activa</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Trigger: Firestore onCreate</p>
+                  <p className="text-xs text-gray-500">Memoria: 1GB | Timeout: 300s</p>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-white">reprocessUnanalyzed</span>
+                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">Activa</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Trigger: HTTPS Callable</p>
+                  <p className="text-xs text-gray-500">Memoria: 1GB | Timeout: 540s</p>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-white">getDeepgramKey</span>
+                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">Activa</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Trigger: HTTPS Callable</p>
+                  <p className="text-xs text-gray-500">Memoria: 256MB</p>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-white">generateSummary</span>
+                    <span className="text-xs px-2 py-1 bg-gray-500/20 text-gray-400 rounded">Inactiva</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Trigger: HTTPS Callable</p>
+                  <p className="text-xs text-gray-500">Usa Claude Sonnet</p>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-white">searchTranscripts</span>
+                    <span className="text-xs px-2 py-1 bg-gray-500/20 text-gray-400 rounded">Inactiva</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Trigger: HTTPS Callable</p>
+                  <p className="text-xs text-gray-500">Usa Pinecone</p>
+                </div>
+                <div className="p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-white">chat</span>
+                    <span className="text-xs px-2 py-1 bg-gray-500/20 text-gray-400 rounded">Inactiva</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Trigger: HTTPS Callable</p>
+                  <p className="text-xs text-gray-500">Usa Claude Sonnet</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="border border-white/10 rounded-lg p-4 text-center">
+                <div className="text-3xl font-bold text-white">{recordings.length}</div>
+                <div className="text-xs text-gray-500 mt-1">Total Recordings</div>
+              </div>
+              <div className="border border-white/10 rounded-lg p-4 text-center">
+                <div className="text-3xl font-bold text-green-400">
+                  {recordings.filter(r => r.status === 'processed').length}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">Processed</div>
+              </div>
+              <div className="border border-white/10 rounded-lg p-4 text-center">
+                <div className="text-3xl font-bold text-yellow-400">
+                  {recordings.filter(r => r.status && r.status !== 'processed').length}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">Pending</div>
+              </div>
+              <div className="border border-white/10 rounded-lg p-4 text-center">
+                <div className="text-3xl font-bold text-red-400">
+                  {recordings.filter(r => r.status === 'process_error').length}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">Errors</div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="border border-white/10 rounded-lg p-4">
+              <h2 className="text-sm font-medium text-blue-400 mb-4 flex items-center gap-2">
+                <span>🚀</span> ACCIONES RÁPIDAS
+              </h2>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={reprocessRecordings}
+                  disabled={isReprocessing}
+                  className="px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 transition-colors disabled:opacity-50 text-sm"
+                >
+                  {isReprocessing ? '⏳ Procesando...' : '🔄 Reprocess All'}
+                </button>
+                <a
+                  href="https://console.firebase.google.com/project/always-f6dda/functions/logs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-colors text-sm"
+                >
+                  📊 Firebase Logs
+                </a>
+                <a
+                  href="https://console.firebase.google.com/project/always-f6dda/firestore"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors text-sm"
+                >
+                  🗄️ Firestore
+                </a>
+                <a
+                  href="https://console.cloud.google.com/security/secret-manager?project=always-f6dda"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors text-sm"
+                >
+                  🔐 Secrets
+                </a>
+              </div>
+              {reprocessResult && (
+                <div className={`mt-3 p-3 rounded-lg text-sm ${
+                  reprocessResult.failed === 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                }`}>
+                  Último reprocess: {reprocessResult.processed}/{reprocessResult.total} procesados
+                  {reprocessResult.failed > 0 && ` (${reprocessResult.failed} fallidos)`}
+                </div>
+              )}
+            </div>
+
+            {/* Data Flow Diagram */}
+            <div className="border border-white/10 rounded-lg p-4">
+              <h2 className="text-sm font-medium text-cyan-400 mb-4 flex items-center gap-2">
+                <span>🔄</span> FLUJO DE DATOS
+              </h2>
+              <div className="text-xs font-mono text-gray-400 bg-black/50 p-4 rounded-lg overflow-x-auto">
+                <pre>{`
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Browser   │────▶│   Deepgram   │────▶│  Firestore  │
+│  (WebRTC)   │     │  (Real-time) │     │ (recordings)│
+└─────────────┘     └──────────────┘     └──────┬──────┘
+                                                 │
+                                                 ▼ onCreate
+                                         ┌──────────────┐
+                                         │processRecording│
+                                         │  (GPT-4o-mini) │
+                                         └──────┬───────┘
+                                                │
+                    ┌───────────────────────────┴───────────────────────────┐
+                    ▼                                                       ▼
+            ┌──────────────┐                                       ┌──────────────┐
+            │   Firestore  │                                       │   Pinecone   │
+            │  (analysis)  │                                       │ (embeddings) │
+            └──────────────┘                                       └──────────────┘
+`}</pre>
+              </div>
+            </div>
+
+            {/* Environment Info */}
+            <div className="border border-white/10 rounded-lg p-4">
+              <h2 className="text-sm font-medium text-gray-400 mb-4 flex items-center gap-2">
+                <span>⚙️</span> CONFIGURACIÓN
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="p-2 bg-white/5 rounded">
+                  <div className="text-gray-500">Chunk Duration</div>
+                  <div className="text-white font-mono">15 min</div>
+                </div>
+                <div className="p-2 bg-white/5 rounded">
+                  <div className="text-gray-500">Silence Threshold</div>
+                  <div className="text-white font-mono">30 sec</div>
+                </div>
+                <div className="p-2 bg-white/5 rounded">
+                  <div className="text-gray-500">Voice Threshold</div>
+                  <div className="text-white font-mono">-50 dB</div>
+                </div>
+                <div className="p-2 bg-white/5 rounded">
+                  <div className="text-gray-500">Voice Check</div>
+                  <div className="text-white font-mono">500 ms</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header with Recording Controls */}
@@ -1186,9 +1502,17 @@ export default function Home() {
         <div className="p-4 border-b border-white/10">
           <h3 className="text-sm font-medium text-gray-400 mb-3">SUMMARY</h3>
           {selectedRecording ? (
-            <p className="text-sm text-gray-300">
-              {selectedRecording.summary || 'Analysis will appear here after transcription completes.'}
-            </p>
+            <>
+              {/* #region agent log */}
+              {(() => {
+                fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:1190',message:'Rendering summary panel',data:{id:selectedRecording.id,summaryDirect:selectedRecording.summary?.substring(0,50) || 'NONE',summaryFromAnalysis:selectedRecording.analysis?.summary?.substring(0,50) || 'NONE',willShow:!!(selectedRecording.summary || selectedRecording.analysis?.summary)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+                return null;
+              })()}
+              {/* #endregion */}
+              <p className="text-sm text-gray-300">
+                {selectedRecording.summary || 'Analysis will appear here after transcription completes.'}
+              </p>
+            </>
           ) : (
             <p className="text-sm text-gray-500">Select a recording to view summary</p>
           )}
@@ -1306,6 +1630,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Chat Button */}
       <button
