@@ -1205,6 +1205,12 @@ export default function Home() {
                   {isReprocessing ? '⏳ Procesando...' : '🔄 Reprocess All'}
                 </button>
                 <a
+                  href="/analisis"
+                  className="px-4 py-2 bg-pink-500/20 text-pink-400 rounded-lg hover:bg-pink-500/30 transition-colors text-sm"
+                >
+                  🧠 Análisis GPT-4o
+                </a>
+                <a
                   href="https://console.firebase.google.com/project/always-f6dda/functions/logs"
                   target="_blank"
                   rel="noopener noreferrer"
