@@ -149,12 +149,202 @@ Responde de forma concisa y útil en español.`,
 // Obtener API key de Deepgram para el cliente
 export const getDeepgramKey = functions.https.onCall(async (data, context) => {
   const apiKey = process.env.DEEPGRAM_API_KEY;
-  
+
   console.log('=== getDeepgramKey called ===');
-  
+
   if (!apiKey) {
     throw new functions.https.HttpsError('failed-precondition', 'Deepgram API key not configured');
   }
 
   return { apiKey };
+});
+
+// ========== PROCESAMIENTO AUTOMÁTICO DE CHUNKS ==========
+
+/**
+ * Procesa un recording cuando se crea en Firestore
+ * Usa GPT-4o-mini para extraer: resumen, participantes, action items, temas
+ */
+export const processRecording = functions.firestore
+  .document('recordings/{recordingId}')
+  .onCreate(async (snapshot, context) => {
+    const recordingId = context.params.recordingId;
+    const data = snapshot.data();
+
+    console.log(`Processing recording ${recordingId}...`);
+
+    // Solo procesar si tiene transcripción
+    const transcript = data.transcript?.text || data.transcript;
+    if (!transcript || transcript === '(sin transcripción)') {
+      console.log('No transcript to process, skipping');
+      return { success: false, reason: 'no_transcript' };
+    }
+
+    try {
+      // Usar GPT-4o-mini para análisis (barato y rápido)
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Eres un asistente que analiza transcripciones de conversaciones/reuniones.
+Extrae información estructurada de la transcripción proporcionada.
+Responde SOLO con JSON válido, sin markdown ni explicaciones.`
+          },
+          {
+            role: 'user',
+            content: `Analiza esta transcripción y extrae:
+1. summary: Resumen breve (1-2 oraciones)
+2. participants: Lista de participantes inferidos (nombres o roles como "Speaker 1", "Entrevistador", etc.)
+3. topics: Temas principales discutidos (máximo 5)
+4. actionItems: Tareas o compromisos mencionados (puede estar vacío)
+5. sentiment: Tono general (positive, neutral, negative)
+
+Transcripción:
+"${transcript}"
+
+Responde en JSON:
+{"summary":"","participants":[],"topics":[],"actionItems":[],"sentiment":""}`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 500,
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '{}';
+      console.log('GPT-4o-mini response:', responseText);
+
+      // Parsear respuesta
+      let analysis;
+      try {
+        // Limpiar posibles marcadores de código
+        const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+        analysis = JSON.parse(cleanJson);
+      } catch (parseError) {
+        console.error('Error parsing GPT response:', parseError);
+        analysis = {
+          summary: 'Error al procesar',
+          participants: [],
+          topics: [],
+          actionItems: [],
+          sentiment: 'neutral'
+        };
+      }
+
+      // Actualizar documento con análisis
+      await snapshot.ref.update({
+        analysis: {
+          summary: analysis.summary || '',
+          participants: analysis.participants || [],
+          topics: analysis.topics || [],
+          actionItems: analysis.actionItems || [],
+          sentiment: analysis.sentiment || 'neutral',
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          model: 'gpt-4o-mini',
+        },
+        status: 'processed',
+      });
+
+      console.log(`Recording ${recordingId} processed successfully`);
+      return { success: true, recordingId, analysis };
+
+    } catch (error) {
+      console.error(`Error processing recording ${recordingId}:`, error);
+
+      // Marcar como error pero no fallar
+      await snapshot.ref.update({
+        status: 'process_error',
+        processError: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      return { success: false, error: String(error) };
+    }
+  });
+
+/**
+ * Función callable para reprocesar recordings existentes que no tienen análisis
+ */
+export const reprocessUnanalyzedRecordings = functions.https.onCall(async (data, context) => {
+  console.log('Starting reprocess of unanalyzed recordings...');
+
+  // Obtener recordings sin análisis
+  const snapshot = await db.collection('recordings')
+    .where('status', '!=', 'processed')
+    .limit(50) // Limitar para evitar timeouts
+    .get();
+
+  console.log(`Found ${snapshot.size} unprocessed recordings`);
+
+  const results: { id: string; success: boolean; error?: string }[] = [];
+
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    const transcript = data.transcript?.text || data.transcript;
+
+    if (!transcript || transcript === '(sin transcripción)') {
+      results.push({ id: doc.id, success: false, error: 'no_transcript' });
+      continue;
+    }
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Eres un asistente que analiza transcripciones de conversaciones/reuniones.
+Extrae información estructurada de la transcripción proporcionada.
+Responde SOLO con JSON válido, sin markdown ni explicaciones.`
+          },
+          {
+            role: 'user',
+            content: `Analiza esta transcripción y extrae:
+1. summary: Resumen breve (1-2 oraciones)
+2. participants: Lista de participantes inferidos
+3. topics: Temas principales (máximo 5)
+4. actionItems: Tareas mencionadas
+5. sentiment: Tono general (positive, neutral, negative)
+
+Transcripción:
+"${transcript}"
+
+JSON:`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 500,
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '{}';
+      const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      const analysis = JSON.parse(cleanJson);
+
+      await doc.ref.update({
+        analysis: {
+          summary: analysis.summary || '',
+          participants: analysis.participants || [],
+          topics: analysis.topics || [],
+          actionItems: analysis.actionItems || [],
+          sentiment: analysis.sentiment || 'neutral',
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          model: 'gpt-4o-mini',
+        },
+        status: 'processed',
+      });
+
+      results.push({ id: doc.id, success: true });
+      console.log(`Processed ${doc.id}`);
+
+    } catch (error) {
+      console.error(`Error processing ${doc.id}:`, error);
+      results.push({ id: doc.id, success: false, error: String(error) });
+    }
+  }
+
+  return {
+    total: snapshot.size,
+    processed: results.filter(r => r.success).length,
+    failed: results.filter(r => !r.success).length,
+    results,
+  };
 });

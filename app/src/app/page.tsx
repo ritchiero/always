@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { onRecordingsChange, saveRecording } from '@/lib/firebase';
 import { RealtimeTranscription } from '@/lib/realtime-transcription';
-import { db } from '@/lib/firebase';
+import { db, functions } from '@/lib/firebase';
 import { onSnapshot, query, orderBy, collection } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 // Icon components
 const HomeIcon = () => (
@@ -102,6 +103,10 @@ export default function Home() {
   const [currentChunkNumber, setCurrentChunkNumber] = useState(1); // Número de chunk actual
   const [sessionStartTime, setSessionStartTime] = useState<number>(0); // Inicio de sesión
   const [chunkStartTime, setChunkStartTime] = useState<number>(0); // Inicio de chunk actual
+
+  // Estado para reprocesamiento
+  const [isReprocessing, setIsReprocessing] = useState(false);
+  const [reprocessResult, setReprocessResult] = useState<{total: number, processed: number, failed: number} | null>(null);
   
   const transcriptionRef = useRef<RealtimeTranscription | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -491,6 +496,30 @@ export default function Home() {
   }, [saveCurrentChunk]);
 
   // ========== FIN DE FUNCIONES DE AUTO-CHUNKING ==========
+
+  /**
+   * Reprocesa grabaciones existentes que no tienen análisis
+   * Llama a la Cloud Function reprocessUnanalyzedRecordings
+   */
+  const reprocessRecordings = async () => {
+    try {
+      setIsReprocessing(true);
+      setReprocessResult(null);
+      console.log('Iniciando reprocesamiento de grabaciones...');
+
+      const reprocessFn = httpsCallable(functions, 'reprocessUnanalyzedRecordings');
+      const result = await reprocessFn();
+
+      const data = result.data as { total: number; processed: number; failed: number };
+      setReprocessResult(data);
+      console.log('Reprocesamiento completado:', data);
+    } catch (err) {
+      console.error('Error reprocesando grabaciones:', err);
+      setError(err instanceof Error ? err.message : 'Error al reprocesar');
+    } finally {
+      setIsReprocessing(false);
+    }
+  };
 
   const startRecording = async () => {
     try {
@@ -1211,9 +1240,33 @@ export default function Home() {
             </button>
             
             {recordings.length > 0 && (
-              <button className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300">
-                <span className="text-sm">Search Recordings</span>
-              </button>
+              <>
+                <button className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300">
+                  <span className="text-sm">Search Recordings</span>
+                </button>
+
+                <button
+                  onClick={reprocessRecordings}
+                  disabled={isReprocessing}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    isReprocessing
+                      ? 'bg-purple-500/10 text-purple-400'
+                      : 'bg-white/5 hover:bg-white/10 text-gray-300'
+                  } disabled:opacity-50`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">
+                      {isReprocessing ? '⏳ Processing...' : '🔄 Reprocess Recordings'}
+                    </span>
+                  </div>
+                  {reprocessResult && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Last: {reprocessResult.processed}/{reprocessResult.total} processed
+                      {reprocessResult.failed > 0 && ` (${reprocessResult.failed} failed)`}
+                    </div>
+                  )}
+                </button>
+              </>
             )}
           </div>
         </div>
