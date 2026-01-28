@@ -1084,11 +1084,11 @@ export default function Home() {
                     <span className="text-gray-300 flex-1">Voice Activity Detection</span>
                     <span className="text-xs text-green-400">Completo</span>
                   </div>
-                  <div className="flex items-center gap-3 p-2">
+                  <a href="/analisis" className="flex items-center gap-3 p-2 hover:bg-white/5 rounded transition-colors cursor-pointer">
                     <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                    <span className="text-gray-300 flex-1">Análisis con GPT-4o-mini</span>
-                    <span className="text-xs text-yellow-400">En pruebas</span>
-                  </div>
+                    <span className="text-gray-300 flex-1 hover:text-white">Análisis con GPT-4o-mini</span>
+                    <span className="text-xs text-yellow-400">En pruebas →</span>
+                  </a>
                   <div className="flex items-center gap-3 p-2">
                     <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
                     <span className="text-gray-300 flex-1">Reprocessing masivo</span>
