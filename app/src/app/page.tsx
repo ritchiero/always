@@ -879,7 +879,8 @@ export default function Home() {
         </nav>
       </div>
 
-      {/* Secondary Sidebar - Recordings */}
+      {/* Secondary Sidebar - Recordings (hidden in dev view) */}
+      {activeNav !== 'dev' && (
       <div className="w-64 bg-black border-r border-white/10 flex flex-col">
         <div className="p-4 border-b border-white/10">
           <h2 className="text-sm font-medium text-gray-400">Today&apos;s Recordings</h2>
@@ -1009,6 +1010,7 @@ export default function Home() {
           )}
         </div>
       </div>
+      )}
 
       {/* Dev/Product View */}
       {activeNav === 'dev' ? (
