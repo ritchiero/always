@@ -15,6 +15,7 @@ import {
 } from './calendar-helpers';
 import { generateDailySummary } from './daily-summary';
 import { indexAllRecordings, indexRecording } from './indexing';
+import { reprocessAllUserRecordings } from './reprocess-all';
 
 admin.initializeApp();
 
@@ -928,3 +929,6 @@ export { generateDailySummary };
 
 // ==================== Indexing ====================
 export { indexAllRecordings };
+
+// ==================== Reprocessing ====================
+export { reprocessAllUserRecordings };
