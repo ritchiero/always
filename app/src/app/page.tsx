@@ -10,6 +10,7 @@ import { SemanticSearch } from '@/components/SemanticSearch';
 import { db, functions } from '@/lib/firebase';
 import { onSnapshot, query, orderBy, collection, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
+import { ActionConfirmationModal } from '@/components/ActionConfirmationModal';
 
 // Icon components
 const HomeIcon = () => (
@@ -124,6 +125,9 @@ export default function Home() {
   const [pendingAction, setPendingAction] = useState<any>(null);
   const [actionFeedback, setActionFeedback] = useState('');
   const [isDraftReady, setIsDraftReady] = useState(false);
+  // Estado para modal de confirmación de drafts (Fase 7)
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<any>(null);
   
   // Estados para eliminación de grabaciones
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -1697,11 +1701,12 @@ export default function Home() {
                                           <button 
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              window.location.href = `mailto:${item.assignee}?subject=Re: ${item.description}&body=Hola ${item.assignee},%0D%0A%0D%0A${item.context || ''}`;
+                                              setSelectedAction(item);
+                                              setShowConfirmationModal(true);
                                             }}
-                                            className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded text-xs hover:bg-blue-500/30 transition-colors font-medium flex items-center gap-1"
+                                            className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30 transition-colors font-medium flex items-center gap-1 border border-green-500/30"
                                           >
-                                            ✉️ Abrir Email
+                                            🤖 Redactar Email
                                           </button>
                                         )}
                                         
@@ -1709,13 +1714,12 @@ export default function Home() {
                                           <button 
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              const title = encodeURIComponent(item.description);
-                                              const details = encodeURIComponent(item.context || '');
-                                              window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}`, '_blank');
+                                              setSelectedAction(item);
+                                              setShowConfirmationModal(true);
                                             }}
                                             className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded text-xs hover:bg-purple-500/30 transition-colors font-medium flex items-center gap-1"
                                           >
-                                            📅 Crear Evento
+                                            📅 Redactar Evento
                                           </button>
                                         )}
                                         
@@ -2253,6 +2257,22 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Confirmación de Acciones (Fase 7) */}
+      {showConfirmationModal && selectedAction && selectedRecording && (
+        <ActionConfirmationModal
+          action={selectedAction}
+          recordingId={selectedRecording.id}
+          onClose={() => {
+            setShowConfirmationModal(false);
+            setSelectedAction(null);
+          }}
+          onSuccess={() => {
+            // Refrescar la grabación para ver el action actualizado
+            console.log('Acción ejecutada exitosamente');
+          }}
+        />
       )}
     </main>
     </ProtectedRoute>

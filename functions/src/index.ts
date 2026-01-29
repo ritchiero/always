@@ -407,3 +407,174 @@ JSON:`
     results,
   };
 });
+
+// ========== FASE 7: SISTEMA DE CONFIRMACIÓN ==========
+// Cloud Functions para generar drafts y ejecutar acciones
+
+import {
+  generateEmailDraft,
+  generateCalendarEventDraft,
+  generateGenericActionDraft,
+  regenerateDraftWithFeedback,
+} from './action-helpers';
+
+/**
+ * Genera un borrador de contenido para una acción (email, evento, etc.)
+ * basándose en el contexto de la conversación
+ */
+export const generateActionDraft = functions
+  .region('us-central1')
+  .runWith({ timeoutSeconds: 60, memory: '1GB' })
+  .https.onCall(async (data, context) => {
+    // Verificar autenticación
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+    }
+
+    const { recordingId, action, previousDraft, feedback } = data;
+
+    if (!recordingId || !action) {
+      throw new functions.https.HttpsError('invalid-argument', 'recordingId y action son requeridos');
+    }
+
+    try {
+      // Obtener la grabación para el contexto
+      const recordingDoc = await db.collection('recordings').doc(recordingId).get();
+      
+      if (!recordingDoc.exists) {
+        throw new functions.https.HttpsError('not-found', 'Grabación no encontrada');
+      }
+
+      const recordingData = recordingDoc.data();
+      const transcriptText = recordingData?.transcript?.text || '';
+
+      // Si hay feedback, regenerar el draft anterior
+      if (previousDraft && feedback) {
+        const openai = getOpenAI();
+        const updatedDraft = await regenerateDraftWithFeedback(openai, previousDraft, feedback);
+        
+        return { draft: updatedDraft };
+      }
+
+      // Generar nuevo draft según el tipo de acción
+      const openai = getOpenAI();
+      let draft = '';
+
+      switch (action.type) {
+        case 'email':
+          draft = await generateEmailDraft(openai, action, transcriptText);
+          break;
+        
+        case 'meeting':
+          draft = await generateCalendarEventDraft(openai, action, transcriptText);
+          break;
+        
+        case 'call':
+        case 'document':
+        case 'followup':
+        case 'other':
+          draft = await generateGenericActionDraft(openai, action.type, action, transcriptText);
+          break;
+        
+        default:
+          throw new functions.https.HttpsError('invalid-argument', `Tipo de acción no soportado: ${action.type}`);
+      }
+
+      return { draft };
+
+    } catch (error) {
+      console.error('Error generando draft:', error);
+      
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      
+      throw new functions.https.HttpsError('internal', `Error al generar borrador: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
+
+/**
+ * Ejecuta una acción después de la aprobación del usuario
+ * (Por ahora solo registra la acción, las integraciones reales vienen en Fase 9-10)
+ */
+export const executeAction = functions
+  .region('us-central1')
+  .runWith({ timeoutSeconds: 60, memory: '512MB' })
+  .https.onCall(async (data, context) => {
+    // Verificar autenticación
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+    }
+
+    const { recordingId, action, draft } = data;
+
+    if (!recordingId || !action || !draft) {
+      throw new functions.https.HttpsError('invalid-argument', 'recordingId, action y draft son requeridos');
+    }
+
+    try {
+      // Por ahora, solo registramos la acción ejecutada
+      // En Fases 9-10 se integrarán Gmail API, Google Calendar, etc.
+      
+      const executionRecord = {
+        recordingId,
+        action,
+        draft,
+        executedAt: admin.firestore.FieldValue.serverTimestamp(),
+        executedBy: context.auth.uid,
+        status: 'executed',
+        // Placeholder para futuras integraciones
+        integrationStatus: {
+          email: null, // Se llenará cuando se integre Gmail API
+          calendar: null, // Se llenará cuando se integre Google Calendar
+        }
+      };
+
+      // Guardar en colección de acciones ejecutadas
+      await db.collection('executedActions').add(executionRecord);
+
+      // Actualizar el status del action item en la grabación
+      const recordingRef = db.collection('recordings').doc(recordingId);
+      const recordingDoc = await recordingRef.get();
+      
+      if (recordingDoc.exists) {
+        const data = recordingDoc.data();
+        const actionItems = data?.analysis?.actionItems || [];
+        
+        // Encontrar y actualizar el action item correspondiente
+        const updatedActionItems = actionItems.map((item: any) => {
+          if (item.description === action.description) {
+            return {
+              ...item,
+              status: 'executed',
+              executedAt: admin.firestore.FieldValue.serverTimestamp(),
+              draft: draft,
+            };
+          }
+          return item;
+        });
+
+        await recordingRef.update({
+          'analysis.actionItems': updatedActionItems
+        });
+      }
+
+      console.log(`Acción ejecutada: ${action.type} para recording ${recordingId}`);
+
+      return { 
+        success: true,
+        message: 'Acción registrada exitosamente. Las integraciones con servicios externos se implementarán en fases posteriores.',
+        executionId: executionRecord
+      };
+
+    } catch (error) {
+      console.error('Error ejecutando acción:', error);
+      
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      
+      throw new functions.https.HttpsError('internal', `Error al ejecutar acción: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
+
