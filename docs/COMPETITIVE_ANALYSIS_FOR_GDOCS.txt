@@ -1,0 +1,284 @@
+COMPETITIVE ANALYSIS - EXECUTIVE SUMMARY
+Always AI - Quick Reference Sheet
+
+Date: Enero 29, 2026
+TL;DR: 1-page summary of 30+ page analysis
+
+═══════════════════════════════════════════════════════════════
+
+🎯 MARKET LANDSCAPE
+
+Market Size: $2B+ (2026), 25% CAGR
+Status: Saturated but with clear gaps
+Competitors: 6+ major players, all focused on virtual meetings
+
+═══════════════════════════════════════════════════════════════
+
+🏆 TOP 5 COMPETITORS AT A GLANCE
+
+┌─────────────┬──────────────────┬────────────────────┬─────────────────────┐
+│ Competitor  │ Pricing (Pro)    │ Best Feature       │ Weakness            │
+├─────────────┼──────────────────┼────────────────────┼─────────────────────┤
+│ Otter.ai    │ $8-20/mo         │ 95% accuracy       │ Virtual-only, caro  │
+│ Fireflies   │ $10-19/mo        │ 100+ languages     │ UI overwhelming     │
+│ tl;dv       │ Unknown          │ Sales coaching     │ Pricing oculto      │
+│ Grain       │ Unknown          │ MCP server, clips  │ Free limits estrictos│
+│ Fathom      │ $20-28/mo        │ Free unlimited     │ Premium tease       │
+│ Rewind      │ N/A              │ Screen recording   │ ❌ Shutting down    │
+└─────────────┴──────────────────┴────────────────────┴─────────────────────┘
+
+═══════════════════════════════════════════════════════════════
+
+✅ WHAT ALWAYS HAS (DIFFERENTIATORS)
+
+1. Offline/presencial recording - Nobody else does this well
+2. Confirmation system - Unique: ensures action items get done
+3. Auto-chunking (15 min) - Better UX for long recordings
+4. Privacy-first, local-first - Data stays on device
+
+Marketing angle: "Otter for real-life conversations"
+
+═══════════════════════════════════════════════════════════════
+
+❌ CRITICAL GAPS (MUST FIX)
+
+┌──────────────────────┬────────────┬──────────┬────────────┐
+│ Gap                  │ Impact     │ Effort   │ Timeline   │
+├──────────────────────┼────────────┼──────────┼────────────┤
+│ Mobile app           │ 🔥 CRITICAL│ High     │ Q2 2026    │
+│ Multi-language       │ 🔥 CRITICAL│ Medium   │ Q1 2026    │
+│ Custom vocabulary    │ 🔥 HIGH    │ Low-Med  │ Q1 2026    │
+│ Calendar integration │ 🔥 HIGH    │ Medium   │ Q1 2026    │
+│ Export formats       │ HIGH       │ Low      │ Q1 2026    │
+└──────────────────────┴────────────┴──────────┴────────────┘
+
+═══════════════════════════════════════════════════════════════
+
+🚀 TOP 5 FEATURES TO BUILD (PRIORITIZED)
+
+1. Mobile App (iOS + Android) - Q2 2026
+   • Why: Table stakes, all competitors have it
+   • Impact: 10/10 (unlocks on-the-go use cases)
+   • Effort: 3-4 months
+
+2. Multi-Language (Spanish + Portuguese) - Q1 2026
+   • Why: LatAm market huge and underserved
+   • Impact: 9/10 (expand market 3x)
+   • Effort: 1-2 months (Deepgram supports it)
+
+3. Custom Vocabulary (100 terms) - Q1 2026
+   • Why: Accuracy booster, Otter has 800
+   • Impact: 8/10 (better transcription quality)
+   • Effort: 3-4 weeks
+
+4. AI Follow-Up Email Drafts - Q2 2026
+   • Why: Massive time saver, tl;dv/Grain highlight this
+   • Impact: 9/10 (high user satisfaction)
+   • Effort: 4-6 weeks
+
+5. Clips/Highlights with Sharing - Q3 2026
+   • Why: Shareability → viral growth
+   • Impact: 7/10 (social proof, marketing)
+   • Effort: 6-8 weeks
+
+═══════════════════════════════════════════════════════════════
+
+💰 SUGGESTED PRICING
+
+┌────────────┬────────┬─────────────────────────────────────┬──────────────────────┐
+│ Plan       │ Price  │ Key Features                        │ Positioning          │
+├────────────┼────────┼─────────────────────────────────────┼──────────────────────┤
+│ Free       │ $0     │ 500 min/mo, 5 recordings, 30d      │ Generous vs Otter    │
+│ Pro        │ $12/mo │ Unlimited, custom vocab, multi-lang │ Cheaper than Otter   │
+│ Business   │ $22/mo │ Teams, CRM, video, 500 vocab       │ Match Fireflies      │
+│ Enterprise │ $39+/mo│ SSO, HIPAA, API, support           │ Standard enterprise  │
+└────────────┴────────┴─────────────────────────────────────┴──────────────────────┘
+
+Key: Undercut Otter slightly, match Fireflies, emphasize offline differentiator
+
+═══════════════════════════════════════════════════════════════
+
+🎯 TOP 3 DIFFERENTIATORS (MARKETING MESSAGES)
+
+1. "WORKS EVERYWHERE"
+   "While Otter records your Zoom calls, Always records your LIFE.
+   Coffee chats. Client dinners. Brainstorms on a walk.
+   If you're talking, Always is listening."
+   
+   Target: Consultants, field sales, journalists
+
+2. "THINGS ACTUALLY GET DONE"
+   "Most AI notetakers create action items.
+   Always ensures they actually happen.
+   Record → Transcribe → Act → Confirm ✓"
+   
+   Target: Project managers, teams, GTD enthusiasts
+
+3. "PRIVACY-FIRST, LOCAL-FIRST"
+   "Your conversations are YOURS.
+   Always stores locally. Always processes locally.
+   Cloud sync is optional. Privacy is default."
+   
+   Target: Healthcare, legal, finance, privacy-conscious users
+
+═══════════════════════════════════════════════════════════════
+
+🗺️ ROADMAP AT A GLANCE
+
+Q1 2026 - Foundation
+  ✅ Calendar integration (finish)
+  🔥 Multi-language (Spanish + Portuguese)
+  🔥 Custom vocabulary
+  • Export formats (PDF, DOCX, SRT)
+
+Q2 2026 - Mobile & Sharing
+  🔥 Mobile app launch
+  • AI follow-up emails
+  • Sharing features (public links)
+  • Folders/tags
+
+Q3 2026 - Collaboration
+  • Clips/highlights
+  • Team workspaces
+  • Comments & mentions
+  • Video recording (beta)
+
+Q4 2026 - Intelligence
+  • Multi-meeting insights
+  • CRM integrations (Salesforce, HubSpot)
+  • Zapier
+  • Conversation intelligence
+
+2027+ - Advanced
+  • Vertical features (Healthcare, Legal, Sales)
+  • Coaching/analytics dashboard
+  • Public API
+  • More languages
+
+═══════════════════════════════════════════════════════════════
+
+📊 FEATURE COMPARISON (QUICK VIEW)
+
+┌────────────────────────┬────────┬───────┬───────────┬───────┬───────┬────────┐
+│ Feature                │ Always │ Otter │ Fireflies │ tl;dv │ Grain │ Fathom │
+├────────────────────────┼────────┼───────┼───────────┼───────┼───────┼────────┤
+│ Offline recording      │   ✅   │  ❌   │    ❌     │  ❌   │  ❌   │   ❌   │
+│ Mobile app             │   ❌   │  ✅   │    ✅     │  ✅   │  ✅   │   ✅   │
+│ Multi-language         │   ❌   │ ✅(3) │  ✅(100+) │ ✅(30)│  ✅   │ ✅(25) │
+│ Free unlimited storage │   ✅   │  ❌   │    ❌     │  ?    │  ❌   │   ✅   │
+│ Confirmation system    │   ✅   │  ❌   │    ❌     │  ❌   │  ❌   │   ❌   │
+│ Auto-chunking          │   ✅   │  ❌   │    ❌     │  ❌   │  ❌   │   ❌   │
+│ CRM integration        │   ❌   │  ✅   │    ✅     │  ✅   │  ✅   │   ✅   │
+│ Sales coaching         │   ❌   │  ⚠️   │    ✅     │  🏆   │  ✅   │   ✅   │
+└────────────────────────┴────────┴───────┴───────────┴───────┴───────┴────────┘
+
+✅ = Has it  |  ❌ = Doesn't have  |  ⚠️ = Limited  |  🏆 = Best-in-class
+
+═══════════════════════════════════════════════════════════════
+
+🎯 IMMEDIATE ACTION ITEMS (NEXT 30 DAYS)
+
+Week 1-2:
+  1. ✅ Complete competitive analysis (Done!)
+  2. 🔍 Research Deepgram multi-language (API docs)
+  3. 🎨 Design custom vocabulary UI (mockups)
+  4. 📋 Audit current features (what works, what doesn't)
+
+Week 3-4:
+  5. 🔨 Start multi-language implementation
+  6. 🔨 Start custom vocabulary backend
+  7. 📱 Hire mobile developers (or contract)
+  8. 📊 Update product roadmap (share with team)
+
+Month 2:
+  9. 🚀 Launch Spanish + Portuguese support
+  10. 🚀 Launch custom vocabulary (beta)
+  11. 📱 Mobile app MVP design (wireframes)
+  12. 💰 Finalize pricing strategy
+
+═══════════════════════════════════════════════════════════════
+
+💡 KEY INSIGHTS
+
+MARKET GAPS (OPPORTUNITIES):
+  1. Presencial/offline - Nobody focuses here (🏆 biggest opportunity)
+  2. Confirmation loop - Nobody closes it (unique differentiator)
+  3. Privacy-first - Growing concern (regulatory advantage)
+  4. Vertical-specific - Generic solutions dominate (niche opportunity)
+
+COMPETITIVE THREATS:
+  1. Otter's brand - 95% user satisfaction, huge recognition
+  2. Fireflies' languages - 100+ languages is hard to beat
+  3. tl;dv's coaching - Sales teams love it
+  4. Fathom's free tier - Unlimited everything attracts users
+
+DEFENSIVE MOATS:
+  1. Offline-first tech - Hard to replicate (requires different architecture)
+  2. Auto-chunking - Patent potential?
+  3. Confirmation system - Behavioral lock-in (users rely on it)
+
+═══════════════════════════════════════════════════════════════
+
+📞 WHO TO TARGET FIRST
+
+IDEAL EARLY ADOPTERS:
+  1. Journalists - Need offline recording for interviews
+  2. Consultants - Client meetings, often presencial
+  3. Field Sales Reps - Customer visits, demos on-site
+  4. Researchers - Interviews, focus groups
+  5. Healthcare - Doctor-patient conversations (HIPAA later)
+
+DISTRIBUTION CHANNELS:
+  • Product Hunt launch
+  • Reddit (r/productivity, r/sales, r/consulting)
+  • Direct outreach to influencers
+  • Partnerships (coworking spaces, conferences)
+
+═══════════════════════════════════════════════════════════════
+
+🚨 RED FLAGS FROM COMPETITOR ANALYSIS
+
+  1. Rewind shutdown - Hardware is risky, stick to software
+  2. tl;dv hidden pricing - Transparency builds trust
+  3. Otter's bot - Some users find it intrusive (Always wins here)
+  4. Free tier limits - Too restrictive = users churn (be generous)
+
+═══════════════════════════════════════════════════════════════
+
+📚 RESOURCES
+
+Full Analysis: /home/ubuntu/always/docs/COMPETITIVE_ANALYSIS.md (30+ pages)
+UI References: /home/ubuntu/always/docs/COMPETITOR_UI_REFERENCES.md (screenshots)
+
+Competitor Sites:
+  • Otter: https://otter.ai
+  • Fireflies: https://fireflies.ai
+  • tl;dv: https://tldv.io
+  • Grain: https://grain.com
+  • Fathom: https://www.fathom.ai
+
+Review Sites:
+  • G2: https://www.g2.com/categories/meeting-transcription
+  • Capterra: https://www.capterra.com/transcription-software/
+
+═══════════════════════════════════════════════════════════════
+
+🎬 FINAL RECOMMENDATION
+
+STRATEGY: "Dominate presencial first, then expand to virtual"
+
+Instead of competing head-to-head with Otter on Zoom:
+  1. Be #1 in presencial/offline recording (our moat)
+  2. Add parity features (mobile, multi-lang, CRM)
+  3. Eventually offer everything (presencial + virtual)
+
+POSITIONING:
+  "Always: The AI Notetaker for EVERY Conversation
+  (Not just the ones on Zoom)"
+
+NEXT MILESTONE: Q2 2026 mobile launch with Spanish support
+
+═══════════════════════════════════════════════════════════════
+
+Prepared by: AI Research Assistant
+Date: Enero 29, 2026
