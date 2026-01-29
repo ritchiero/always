@@ -14,6 +14,7 @@ import {
   correlateEventsWithRecordings
 } from './calendar-helpers';
 import { generateDailySummary } from './daily-summary';
+import { indexAllRecordings, indexRecording } from './indexing';
 
 admin.initializeApp();
 
@@ -279,7 +280,7 @@ export const getDeepgramKey = functions.https.onCall(async (data, context) => {
  */
 export const processRecording = functions
   .runWith({
-    secrets: ['OPENAI_API_KEY'],
+    secrets: ['OPENAI_API_KEY', 'PINECONE_API_KEY'],
     timeoutSeconds: 60,
   })
   .firestore
@@ -406,6 +407,23 @@ Responde en JSON válido:
         },
         status: 'processed',
       });
+
+      // Index in Pinecone for semantic search
+      try {
+        const userId = data.userId || data.uid || 'unknown';
+        const metadata = {
+          createdAt: data.createdAt?.toDate?.().toISOString() || new Date().toISOString(),
+          sessionId: data.sessionId || '',
+          chunkIndex: data.chunkIndex || 0,
+          title: analysis.title || 'Untitled Recording',
+        };
+        
+        await indexRecording(recordingId, userId, transcript, metadata);
+        console.log(`Recording ${recordingId} indexed in Pinecone`);
+      } catch (indexError) {
+        console.error(`Failed to index ${recordingId} in Pinecone:`, indexError);
+        // Don't fail the whole process if indexing fails
+      }
 
       console.log(`Recording ${recordingId} processed successfully`);
       return { success: true, recordingId, analysis };
@@ -899,3 +917,6 @@ export const correlateRecordingsWithEvents = functions
 
 // ==================== Daily Summary ====================
 export { generateDailySummary };
+
+// ==================== Indexing ====================
+export { indexAllRecordings };
