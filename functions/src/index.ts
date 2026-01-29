@@ -145,23 +145,91 @@ Responde en JSON con esta estructura:
 });
 
 // Buscar en transcripciones con Pinecone
-export const searchTranscripts = functions.https.onCall(async (data, context) => {
-  const { query } = data;
-  
-  const embedding = await getOpenAI().embeddings.create({
-    model: 'text-embedding-3-small',
-    input: query,
+export const searchTranscripts = functions
+  .runWith({
+    secrets: ['OPENAI_API_KEY', 'PINECONE_API_KEY'],
+    timeoutSeconds: 30,
+  })
+  .https.onCall(async (data, context) => {
+    // Authentication check
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'User must be authenticated to search'
+      );
+    }
+
+    const userId = context.auth.uid;
+    const { query } = data;
+
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Query must be a non-empty string'
+      );
+    }
+
+    console.log(`[searchTranscripts] User ${userId} searching for: "${query}"`);
+
+    try {
+      // 1. Generate embedding for the query
+      const openai = getOpenAI();
+      const embedding = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: query.trim(),
+      });
+
+      console.log('[searchTranscripts] Generated embedding');
+
+      // 2. Query Pinecone with user filter
+      const index = pinecone.index('always-transcripts');
+      const queryResponse = await index.query({
+        vector: embedding.data[0].embedding,
+        topK: 10,
+        includeMetadata: true,
+        filter: {
+          userId: userId, // Only search this user's recordings
+        },
+      });
+
+      console.log(`[searchTranscripts] Found ${queryResponse.matches?.length || 0} results`);
+
+      // 3. Return results
+      if (!queryResponse.matches || queryResponse.matches.length === 0) {
+        return [];
+      }
+
+      return queryResponse.matches.map((match: any) => ({
+        id: match.id,
+        score: match.score,
+        metadata: match.metadata || {},
+      }));
+    } catch (error: any) {
+      console.error('[searchTranscripts] Error:', error);
+
+      // Check if it's a Pinecone index issue
+      if (error.message?.includes('Index') || error.message?.includes('not found')) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'Search index not ready. Please wait a few minutes and try again.'
+        );
+      }
+
+      // Check if it's an OpenAI issue
+      if (error.message?.includes('openai') || error.message?.includes('embedding')) {
+        throw new functions.https.HttpsError(
+          'internal',
+          'Failed to process search query. Please try again.'
+        );
+      }
+
+      // Generic error
+      throw new functions.https.HttpsError(
+        'internal',
+        `Search failed: ${error.message || 'Unknown error'}`
+      );
+    }
   });
-  
-  const index = pinecone.index('always-transcripts');
-  const results = await index.query({
-    vector: embedding.data[0].embedding,
-    topK: 5,
-    includeMetadata: true,
-  });
-  
-  return results.matches;
-});
 
 // Chat con contexto
 export const chat = functions.https.onCall(async (data, context) => {
