@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { onRecordingsChange, saveRecording, deleteRecording, recoverRecording, hardDeleteRecording, updateActionItemStatus } from '@/lib/firebase';
 import { RealtimeTranscription } from '@/lib/realtime-transcription';
+import { SemanticSearch } from '@/components/SemanticSearch';
 import { db, functions } from '@/lib/firebase';
 import { onSnapshot, query, orderBy, collection, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -1071,8 +1072,16 @@ export default function Home() {
       </div>
       )}
 
-      {/* Dev/Product View */}
-      {activeNav === 'dev' ? (
+      {/* Semantic Search View */}
+      {activeNav === 'search' ? (
+        <SemanticSearch onSelectRecording={(id) => {
+          const recording = recordings.find(r => r.id === id);
+          if (recording) {
+            setSelectedRecording(recording);
+            setActiveNav('home');
+          }
+        }} />
+      ) : activeNav === 'dev' ? (
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           <div className="p-6 space-y-6">
             {/* Header */}
