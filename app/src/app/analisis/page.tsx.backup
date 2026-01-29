@@ -689,64 +689,28 @@ export default function AnalisisPage() {
             </div>
 
             {/* Fase 7: Sistema de Confirmación */}
-            <div className="bg-white/5 border border-yellow-500/30 rounded-lg p-3">
+            <div className="bg-white/5 border border-white/10 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-yellow-400 font-bold">FASE 7 ⚠️</span>
-                <span className="text-xs text-gray-500">Sistema de Confirmación - Pendiente Deploy</span>
+                <span className="text-orange-400 font-bold">FASE 7</span>
+                <span className="text-xs text-gray-500">Sistema de Confirmación</span>
               </div>
               <div className="space-y-2">
                 <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-yellow-500" />
-                  <span className="text-sm text-gray-300">Modal de confirmación: &quot;¿Deseas que redacte el correo?&quot;</span>
+                  <input type="checkbox" className="mt-0.5 accent-orange-500" />
+                  <span className="text-sm text-white">Modal de confirmación: &quot;¿Deseas que redacte el correo?&quot;</span>
                 </label>
                 <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-yellow-500" />
-                  <span className="text-sm text-gray-300">Botones Sí/No antes de cualquier acción</span>
+                  <input type="checkbox" className="mt-0.5 accent-orange-500" />
+                  <span className="text-sm text-white">Botones Sí/No antes de cualquier acción</span>
                 </label>
                 <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-yellow-500" />
-                  <span className="text-sm text-gray-300">Generar draft del contenido (email/evento)</span>
+                  <input type="checkbox" className="mt-0.5 accent-orange-500" />
+                  <span className="text-sm text-white">Generar draft del contenido (email/evento)</span>
                 </label>
                 <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-yellow-500" />
-                  <span className="text-sm text-gray-300">Campo de feedback para editar antes de enviar</span>
+                  <input type="checkbox" className="mt-0.5 accent-orange-500" />
+                  <span className="text-sm text-white">Campo de feedback para editar antes de enviar</span>
                 </label>
-              </div>
-              <div className="mt-2 text-xs text-yellow-400 bg-yellow-500/10 rounded px-2 py-1">
-                ⚠️ Código listo - Requiere configurar secret de OpenAI y deploy de Functions desde computadora
-              </div>
-            </div>
-
-            {/* NUEVA: Mejoras de UX Mobile */}
-            <div className="bg-white/5 border border-green-500/30 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-green-400 font-bold">MEJORAS UX ✓</span>
-                <span className="text-xs text-gray-500">Experiencia de Usuario</span>
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-green-500" />
-                  <span className="text-sm text-gray-300 line-through opacity-50">Header mobile con menú hamburguesa (Tesla-style)</span>
-                </label>
-                <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-green-500" />
-                  <span className="text-sm text-gray-300 line-through opacity-50">Sidebar deslizable con overlay</span>
-                </label>
-                <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-green-500" />
-                  <span className="text-sm text-gray-300 line-through opacity-50">Botón flotante de grabación (FAB) con animaciones</span>
-                </label>
-                <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-green-500" />
-                  <span className="text-sm text-gray-300 line-through opacity-50">Banner de estado con timer y voice activity bars</span>
-                </label>
-                <label className="flex items-start gap-2 cursor-pointer hover:bg-white/5 p-2 rounded transition-colors">
-                  <input type="checkbox" checked readOnly className="mt-0.5 accent-green-500" />
-                  <span className="text-sm text-gray-300 line-through opacity-50">Feedback visual mejorado (Recording/Listening/Processing)</span>
-                </label>
-              </div>
-              <div className="mt-2 text-xs text-green-400 bg-green-500/10 rounded px-2 py-1">
-                ✓ Live en producción - https://app-pi-one-84.vercel.app/
               </div>
             </div>
 
@@ -829,80 +793,13 @@ export default function AnalisisPage() {
             <p className="text-green-300 text-sm font-medium mb-1">📊 Progreso General</p>
             <div className="flex items-center gap-3">
               <div className="flex-1 bg-black/50 rounded-full h-2 overflow-hidden">
-                <div className="bg-gradient-to-r from-green-500 to-green-400 h-full" style={{width: '79%'}}></div>
+                <div className="bg-gradient-to-r from-green-500 to-green-400 h-full" style={{width: '54%'}}></div>
               </div>
-              <span className="text-white font-bold text-sm">33/42</span>
+              <span className="text-white font-bold text-sm">20/37</span>
             </div>
             <p className="text-gray-300 text-xs mt-2">
-              Fases 1-6 completadas ✓ | Fase 7 pendiente deploy ⚠️ | UX mejorada ✓ | Siguiente: Deploy Phase 7 & Integraciones
+              Fases 1-6 completadas ✓ | Siguiente: Sistema de confirmación (Fase 7)
             </p>
-          </div>
-
-          {/* Nueva sección: Próximos Pasos */}
-          <div className="mt-4 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-            <p className="text-blue-300 font-bold text-sm mb-3 flex items-center gap-2">
-              🎯 Próximos Pasos & Expectativas
-            </p>
-            
-            <div className="space-y-3">
-              <div>
-                <p className="text-white font-medium text-sm mb-1">📍 Estado Actual (Enero 29, 2026)</p>
-                <ul className="text-gray-300 text-xs space-y-1 ml-4">
-                  <li>✅ <span className="text-green-400">Backend completo:</span> Análisis automático, action items estructurados, gestión completa</li>
-                  <li>✅ <span className="text-green-400">UI mobile:</span> Header hamburguesa, FAB, animaciones Tesla-style</li>
-                  <li>⚠️ <span className="text-yellow-400">Fase 7 (Confirmación):</span> Código listo, pendiente configurar OpenAI secret + deploy</li>
-                  <li>📊 <span className="text-blue-400">79% completado</span> - Faltan integraciones externas</li>
-                </ul>
-              </div>
-
-              <div className="border-t border-white/10 pt-3">
-                <p className="text-white font-medium text-sm mb-1">🚀 Inmediato (Esta Semana)</p>
-                <ul className="text-gray-300 text-xs space-y-1 ml-4">
-                  <li><span className="text-yellow-400">1.</span> Deploy Phase 7 (desde computadora):
-                    <ul className="ml-4 mt-1 text-gray-400">
-                      <li>• Configurar <code className="bg-black/50 px-1 rounded">firebase functions:secrets:set OPENAI_API_KEY</code></li>
-                      <li>• Deploy de generateActionDraft + executeAction</li>
-                      <li>• Testear modal de confirmación</li>
-                    </ul>
-                  </li>
-                  <li><span className="text-yellow-400">2.</span> Sincronización de Google Calendar:
-                    <ul className="ml-4 mt-1 text-gray-400">
-                      <li>• Leer eventos del día automáticamente</li>
-                      <li>• Correlacionar grabaciones con reuniones por timestamp</li>
-                      <li>• Agregar participantes al contexto</li>
-                    </ul>
-                  </li>
-                  <li><span className="text-yellow-400">3.</span> Testing completo en móvil (iOS + Android)</li>
-                </ul>
-              </div>
-
-              <div className="border-t border-white/10 pt-3">
-                <p className="text-white font-medium text-sm mb-1">🔮 Corto Plazo (Próximas 2 Semanas)</p>
-                <ul className="text-gray-300 text-xs space-y-1 ml-4">
-                  <li><span className="text-purple-400">•</span> <b>Fase 8 (Redacción IA):</b> GPT-4o genera drafts completos con contexto</li>
-                  <li><span className="text-purple-400">•</span> <b>Fase 9 (Integraciones):</b> Gmail API + Google Calendar API reales</li>
-                  <li><span className="text-purple-400">•</span> <b>Búsqueda Semántica:</b> Pinecone + OpenAI embeddings (infraestructura ya lista)</li>
-                  <li><span className="text-purple-400">•</span> <b>Vista de Tareas:</b> Dashboard de action items pendientes/completados</li>
-                </ul>
-              </div>
-
-              <div className="border-t border-white/10 pt-3">
-                <p className="text-white font-medium text-sm mb-1">🌟 Mediano Plazo (Próximo Mes)</p>
-                <ul className="text-gray-300 text-xs space-y-1 ml-4">
-                  <li><span className="text-cyan-400">•</span> <b>Fase 10 (Automatización):</b> Ejecución real de acciones tras aprobación</li>
-                  <li><span className="text-cyan-400">•</span> <b>Contacts Integration:</b> Directorio inteligente de contactos</li>
-                  <li><span className="text-cyan-400">•</span> <b>Multi-idioma:</b> Soporte para inglés (además de español)</li>
-                  <li><span className="text-cyan-400">•</span> <b>Export/Sharing:</b> Compartir transcripciones, generar PDFs</li>
-                </ul>
-              </div>
-
-              <div className="bg-white/5 rounded p-2 mt-3">
-                <p className="text-xs text-gray-400">
-                  <span className="text-blue-400 font-bold">💡 Nota:</span> El proyecto está en fase de <span className="text-white">MVP avanzado</span>. 
-                  El backend y análisis funcionan end-to-end. Ahora el foco es <span className="text-green-400">integraciones externas</span> y <span className="text-green-400">refinamiento de UX</span>.
-                </p>
-              </div>
-            </div>
           </div>
           
           <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
