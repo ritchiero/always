@@ -1053,6 +1053,15 @@ export default function Home() {
               </span>
             )}
           </Link>
+          
+          {/* Link a Settings */}
+          <Link 
+            href="/settings"
+            className="p-3 flex items-center gap-2 text-gray-500 hover:text-white hover:bg-white/5 rounded transition-colors"
+          >
+            <span>⚙️</span>
+            <span className="flex-1 text-sm">Configuración</span>
+          </Link>
         </div>
       </div>
       )}
@@ -1542,6 +1551,52 @@ export default function Home() {
                   {/* Análisis Detallado */}
                   {selectedRecording.analysis && (
                     <div className="space-y-4">
+                      {/* Calendar Event Correlation */}
+                      {selectedRecording.correlatedEvent && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <span className="text-2xl">📅</span>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <h4 className="font-medium text-blue-300 text-sm">Calendar Event</h4>
+                                <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-0.5 rounded">
+                                  {Math.round(selectedRecording.correlatedEvent.matchScore * 100)}% match
+                                </span>
+                              </div>
+                              <p className="text-white font-semibold text-base mb-1">
+                                {selectedRecording.correlatedEvent.summary}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {selectedRecording.correlatedEvent.startTime?.toDate?.()?.toLocaleString('es-MX', {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short'
+                                }) || 'Unknown time'}
+                              </p>
+                              
+                              {selectedRecording.correlatedEvent.participants && 
+                               selectedRecording.correlatedEvent.participants.length > 0 && (
+                                <div className="mt-3">
+                                  <p className="text-xs text-gray-500 mb-1.5">Event Participants:</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {selectedRecording.correlatedEvent.participants.map((p: any, i: number) => (
+                                      <div
+                                        key={i}
+                                        className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/20 rounded text-xs"
+                                      >
+                                        <span className="text-blue-300">{p.name || p.email}</span>
+                                        {p.email && p.name && (
+                                          <span className="text-blue-400/60">{p.email}</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Participants */}
                       {selectedRecording.analysis.participants && selectedRecording.analysis.participants.length > 0 && (
                         <div className="bg-white/5 rounded-lg p-4">

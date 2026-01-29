@@ -7,6 +7,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AssemblyAI } from 'assemblyai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import OpenAI from 'openai';
+import {
+  exchangeCodeForTokens,
+  syncUserCalendar,
+  syncAllActiveCalendars,
+  correlateEventsWithRecordings
+} from './calendar-helpers';
 
 admin.initializeApp();
 
@@ -578,3 +584,201 @@ export const executeAction = functions
     }
   });
 
+
+/**
+ * ===========================
+ * GOOGLE CALENDAR INTEGRATION
+ * ===========================
+ */
+
+/**
+ * Connect Google Calendar - Exchange OAuth code for tokens
+ */
+export const connectGoogleCalendar = functions
+  .region('us-central1')
+  .runWith({
+    timeoutSeconds: 60,
+    memory: '256MB'
+  })
+  .https.onCall(async (data, context) => {
+    // Verify auth
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+    }
+    
+    const userId = context.auth.uid;
+    const { code } = data;
+    
+    if (!code) {
+      throw new functions.https.HttpsError('invalid-argument', 'Código de OAuth requerido');
+    }
+    
+    try {
+      console.log('[Calendar] Connecting calendar for user:', userId);
+      
+      const result = await exchangeCodeForTokens(userId, code);
+      
+      if (!result.success) {
+        throw new functions.https.HttpsError('internal', result.error || 'Error al conectar calendario');
+      }
+      
+      return { success: true, message: 'Calendario conectado exitosamente' };
+      
+    } catch (error) {
+      console.error('[Calendar] Error connecting calendar:', error);
+      
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        `Error al conectar calendario: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+/**
+ * Manual sync calendar events for a user
+ */
+export const syncCalendar = functions
+  .region('us-central1')
+  .runWith({
+    timeoutSeconds: 120,
+    memory: '512MB'
+  })
+  .https.onCall(async (data, context) => {
+    // Verify auth
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+    }
+    
+    const userId = context.auth.uid;
+    
+    try {
+      console.log('[Calendar] Manual sync requested for user:', userId);
+      
+      await syncUserCalendar(userId);
+      
+      return { success: true, message: 'Calendario sincronizado exitosamente' };
+      
+    } catch (error) {
+      console.error('[Calendar] Error syncing calendar:', error);
+      
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        `Error al sincronizar calendario: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+/**
+ * Scheduled sync - Run every hour for all active users
+ */
+export const scheduledCalendarSync = functions
+  .region('us-central1')
+  .runWith({
+    timeoutSeconds: 540, // 9 minutes (max for scheduled functions)
+    memory: '1GB'
+  })
+  .pubsub.schedule('every 1 hours')
+  .onRun(async (context) => {
+    try {
+      console.log('[Calendar] Starting scheduled sync for all users');
+      
+      await syncAllActiveCalendars();
+      
+      console.log('[Calendar] Scheduled sync completed');
+      
+      return null;
+    } catch (error) {
+      console.error('[Calendar] Error in scheduled sync:', error);
+      // Don't throw - we want the function to complete even if some users fail
+      return null;
+    }
+  });
+
+/**
+ * Disconnect Google Calendar
+ */
+export const disconnectGoogleCalendar = functions
+  .region('us-central1')
+  .runWith({
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .https.onCall(async (data, context) => {
+    // Verify auth
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+    }
+    
+    const userId = context.auth.uid;
+    
+    try {
+      console.log('[Calendar] Disconnecting calendar for user:', userId);
+      
+      // Mark as inactive (don't delete - keep for audit)
+      await db.collection('users').doc(userId)
+        .collection('calendarAuth').doc('google').update({
+          isActive: false,
+          disconnectedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      
+      return { success: true, message: 'Calendario desconectado exitosamente' };
+      
+    } catch (error) {
+      console.error('[Calendar] Error disconnecting calendar:', error);
+      
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        `Error al desconectar calendario: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });
+
+/**
+ * Manual correlation trigger (for testing or re-correlation)
+ */
+export const correlateRecordingsWithEvents = functions
+  .region('us-central1')
+  .runWith({
+    timeoutSeconds: 120,
+    memory: '512MB'
+  })
+  .https.onCall(async (data, context) => {
+    // Verify auth
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+    }
+    
+    const userId = context.auth.uid;
+    
+    try {
+      console.log('[Calendar] Manual correlation requested for user:', userId);
+      
+      await correlateEventsWithRecordings(userId);
+      
+      return { success: true, message: 'Correlación completada exitosamente' };
+      
+    } catch (error) {
+      console.error('[Calendar] Error correlating:', error);
+      
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        `Error al correlacionar: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  });

@@ -1,0 +1,478 @@
+/**
+ * Google Calendar Integration Helpers
+ * OAuth 2.0, token management, sync, and correlation logic
+ */
+
+import * as admin from 'firebase-admin';
+import { google, Auth } from 'googleapis';
+
+const db = admin.firestore();
+
+// OAuth2 Client Configuration
+function getOAuth2Client(): Auth.OAuth2Client {
+  const clientId = process.env.GOOGLE_CLIENT_ID || '';
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://app-pi-one-84.vercel.app/auth/google/callback';
+  
+  return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+}
+
+// Scopes needed for calendar integration
+export const CALENDAR_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
+  'openid',
+  'email',
+  'profile'
+];
+
+/**
+ * Exchange OAuth code for tokens and store in Firestore
+ */
+export async function exchangeCodeForTokens(
+  userId: string, 
+  code: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const oauth2Client = getOAuth2Client();
+    
+    // Exchange code for tokens
+    const { tokens } = await oauth2Client.getToken(code);
+    
+    if (!tokens.access_token || !tokens.refresh_token) {
+      throw new Error('Missing tokens from OAuth response');
+    }
+    
+    oauth2Client.setCredentials(tokens);
+    
+    // Get user's primary calendar info
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const calendarList = await calendar.calendarList.list();
+    const primaryCalendar = calendarList.data.items?.find(c => c.primary);
+    
+    // Store tokens in Firestore
+    await db.collection('users').doc(userId)
+      .collection('calendarAuth').doc('google').set({
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: admin.firestore.Timestamp.fromMillis(
+          Date.now() + ((tokens.expiry_date || 3600000) - Date.now())
+        ),
+        scope: tokens.scope || CALENDAR_SCOPES.join(' '),
+        tokenType: tokens.token_type || 'Bearer',
+        connectedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastSync: null,
+        calendarId: primaryCalendar?.id || 'primary',
+        userEmail: primaryCalendar?.summary || '',
+        isActive: true,
+        lastError: null
+      });
+    
+    console.log('[Calendar] Successfully connected calendar for user:', userId);
+    
+    // Trigger initial sync
+    await syncUserCalendar(userId);
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Calendar] Error exchanging code for tokens:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Refresh access token using refresh token
+ */
+export async function refreshAccessToken(userId: string): Promise<boolean> {
+  try {
+    const authDoc = await db.collection('users').doc(userId)
+      .collection('calendarAuth').doc('google').get();
+    
+    if (!authDoc.exists) {
+      console.error('[Calendar] No auth doc found for user:', userId);
+      return false;
+    }
+    
+    const auth = authDoc.data()!;
+    
+    if (!auth.refreshToken) {
+      console.error('[Calendar] No refresh token found');
+      return false;
+    }
+    
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      refresh_token: auth.refreshToken
+    });
+    
+    const { credentials } = await oauth2Client.refreshAccessToken();
+    
+    if (!credentials.access_token) {
+      throw new Error('No access token in refresh response');
+    }
+    
+    // Update tokens in Firestore
+    await authDoc.ref.update({
+      accessToken: credentials.access_token,
+      expiresAt: admin.firestore.Timestamp.fromMillis(
+        Date.now() + ((credentials.expiry_date || 3600000) - Date.now())
+      ),
+      lastError: null
+    });
+    
+    console.log('[Calendar] Successfully refreshed token for user:', userId);
+    return true;
+  } catch (error: any) {
+    console.error('[Calendar] Error refreshing token:', error);
+    
+    // Mark as inactive if auth failed
+    await db.collection('users').doc(userId)
+      .collection('calendarAuth').doc('google').update({
+        isActive: false,
+        lastError: error.message
+      });
+    
+    return false;
+  }
+}
+
+/**
+ * Get authenticated OAuth2 client for a user
+ */
+async function getAuthenticatedClient(userId: string): Promise<Auth.OAuth2Client | null> {
+  const authDoc = await db.collection('users').doc(userId)
+    .collection('calendarAuth').doc('google').get();
+  
+  if (!authDoc.exists) {
+    console.error('[Calendar] No auth doc for user:', userId);
+    return null;
+  }
+  
+  const auth = authDoc.data()!;
+  
+  // Check if token is expired
+  if (auth.expiresAt.toMillis() < Date.now()) {
+    console.log('[Calendar] Token expired, refreshing...');
+    const refreshed = await refreshAccessToken(userId);
+    if (!refreshed) return null;
+    
+    // Re-fetch updated auth
+    const updatedAuthDoc = await authDoc.ref.get();
+    const updatedAuth = updatedAuthDoc.data()!;
+    
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: updatedAuth.accessToken,
+      refresh_token: updatedAuth.refreshToken
+    });
+    
+    return oauth2Client;
+  }
+  
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({
+    access_token: auth.accessToken,
+    refresh_token: auth.refreshToken
+  });
+  
+  return oauth2Client;
+}
+
+/**
+ * Convert null to undefined (Firestore compatibility)
+ */
+function nullToUndefined<T>(value: T | null | undefined): T | undefined {
+  return value === null ? undefined : value;
+}
+
+/**
+ * Extract meeting URL from event description
+ */
+function extractMeetingUrl(description?: string): string | undefined {
+  if (!description) return undefined;
+  
+  // Common meeting URL patterns
+  const patterns = [
+    /https:\/\/meet\.google\.com\/[a-z-]+/i,
+    /https:\/\/zoom\.us\/j\/\d+/i,
+    /https:\/\/teams\.microsoft\.com\/l\/meetup-join/i,
+    /https:\/\/.*\.webex\.com\/.*\/join/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = description.match(pattern);
+    if (match) return match[0];
+  }
+  
+  return undefined;
+}
+
+/**
+ * Sync calendar events for a user
+ */
+export async function syncUserCalendar(userId: string): Promise<void> {
+  try {
+    console.log('[Calendar] Starting sync for user:', userId);
+    
+    const authClient = await getAuthenticatedClient(userId);
+    if (!authClient) {
+      throw new Error('Failed to get authenticated client');
+    }
+    
+    const calendar = google.calendar({ version: 'v3', auth: authClient });
+    
+    // Get events from today and next 7 days
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    const response = await calendar.events.list({
+      calendarId: 'primary' as string,
+      timeMin: now.toISOString(),
+      timeMax: weekFromNow.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 50
+    });
+    
+    const events = response.data.items || [];
+    console.log('[Calendar] Found', events.length, 'events');
+    
+    // Store/update events in Firestore (batch write)
+    const batch = db.batch();
+    let batchCount = 0;
+    
+    for (const event of events) {
+      if (!event.id) continue;
+      
+      const eventRef = db.collection('users').doc(userId)
+        .collection('calendarEvents').doc(event.id);
+      
+      const eventData = {
+        eventId: event.id,
+        calendarId: 'primary',
+        summary: event.summary || 'Untitled Event',
+        description: event.description || '',
+        location: event.location || '',
+        startTime: event.start?.dateTime 
+          ? admin.firestore.Timestamp.fromDate(new Date(event.start.dateTime))
+          : event.start?.date
+          ? admin.firestore.Timestamp.fromDate(new Date(event.start.date))
+          : admin.firestore.Timestamp.now(),
+        endTime: event.end?.dateTime
+          ? admin.firestore.Timestamp.fromDate(new Date(event.end.dateTime))
+          : event.end?.date
+          ? admin.firestore.Timestamp.fromDate(new Date(event.end.date))
+          : admin.firestore.Timestamp.now(),
+        timeZone: event.start?.timeZone || 'UTC',
+        organizer: event.organizer || null,
+        attendees: (event.attendees || []).map(a => ({
+          email: a.email,
+          displayName: a.displayName || a.email,
+          responseStatus: a.responseStatus || 'needsAction',
+          optional: a.optional || false
+        })),
+        meetingUrl: nullToUndefined(event.hangoutLink) || extractMeetingUrl(nullToUndefined(event.description)),
+        htmlLink: event.htmlLink || '',
+        status: event.status || 'confirmed',
+        visibility: event.visibility || 'default',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        syncedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      batch.set(eventRef, eventData, { merge: true });
+      batchCount++;
+      
+      // Commit batch every 400 operations (Firestore limit is 500)
+      if (batchCount >= 400) {
+        await batch.commit();
+        batchCount = 0;
+      }
+    }
+    
+    // Commit remaining operations
+    if (batchCount > 0) {
+      await batch.commit();
+    }
+    
+    // Update last sync time
+    await db.collection('users').doc(userId)
+      .collection('calendarAuth').doc('google').update({
+        lastSync: admin.firestore.FieldValue.serverTimestamp(),
+        lastError: null
+      });
+    
+    console.log('[Calendar] Sync completed for user:', userId);
+    
+    // Trigger correlation with recordings
+    await correlateEventsWithRecordings(userId);
+    
+  } catch (error: any) {
+    console.error('[Calendar] Error syncing calendar for user', userId, error);
+    
+    // Store error in auth doc
+    await db.collection('users').doc(userId)
+      .collection('calendarAuth').doc('google').update({
+        lastError: error.message,
+        isActive: error.code === 401 ? false : true
+      });
+    
+    throw error;
+  }
+}
+
+/**
+ * Correlate calendar events with recordings based on timestamp
+ */
+export async function correlateEventsWithRecordings(userId: string): Promise<void> {
+  try {
+    console.log('[Calendar] Starting correlation for user:', userId);
+    
+    // Get today's events
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    const eventsSnapshot = await db.collection('users').doc(userId)
+      .collection('calendarEvents')
+      .where('startTime', '>=', admin.firestore.Timestamp.fromDate(todayStart))
+      .where('startTime', '<=', admin.firestore.Timestamp.fromDate(todayEnd))
+      .get();
+    
+    // Get today's recordings (not deleted)
+    const recordingsSnapshot = await db.collection('recordings')
+      .where('userId', '==', userId)
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(todayStart))
+      .where('deletedAt', '==', null)
+      .get();
+    
+    console.log('[Calendar] Found', eventsSnapshot.size, 'events and', recordingsSnapshot.size, 'recordings');
+    
+    // Match recordings to events by timestamp
+    const matches: Array<{
+      recording: any;
+      event: any;
+      score: number;
+    }> = [];
+    
+    recordingsSnapshot.docs.forEach(recDoc => {
+      const recording = { id: recDoc.id, ...recDoc.data() } as any;
+      const recTime = recording.createdAt?.toMillis?.() || 0;
+      
+      eventsSnapshot.docs.forEach(eventDoc => {
+        const event = eventDoc.data();
+        const eventStart = event.startTime.toMillis();
+        const eventEnd = event.endTime.toMillis();
+        
+        // Match if recording started within 15 min before/after event start
+        const timeDiff = Math.abs(recTime - eventStart);
+        const fifteenMin = 15 * 60 * 1000;
+        
+        if (timeDiff < fifteenMin) {
+          // Score based on proximity (closer = higher score)
+          const score = 1 - (timeDiff / fifteenMin);
+          matches.push({ recording, event, score });
+        }
+        
+        // Also match if recording started during event
+        if (recTime >= eventStart && recTime <= eventEnd) {
+          // High score for recordings during event
+          const existingMatch = matches.find(m => 
+            m.recording.id === recording.id && m.event.eventId === event.eventId
+          );
+          if (!existingMatch) {
+            matches.push({ recording, event, score: 0.95 });
+          }
+        }
+      });
+    });
+    
+    console.log('[Calendar] Found', matches.length, 'potential matches');
+    
+    // Apply matches (keep highest score per recording)
+    const batch = db.batch();
+    let batchCount = 0;
+    
+    const recordingBestMatches = new Map<string, any>();
+    matches.forEach(match => {
+      const existing = recordingBestMatches.get(match.recording.id);
+      if (!existing || match.score > existing.score) {
+        recordingBestMatches.set(match.recording.id, match);
+      }
+    });
+    
+    recordingBestMatches.forEach((match, recordingId) => {
+      const recRef = db.collection('recordings').doc(recordingId);
+      
+      batch.update(recRef, {
+        correlatedEvent: {
+          eventId: match.event.eventId,
+          summary: match.event.summary,
+          participants: (match.event.attendees || []).map((a: any) => ({
+            email: a.email,
+            name: a.displayName
+          })),
+          startTime: match.event.startTime,
+          matchScore: match.score
+        }
+      });
+      
+      batchCount++;
+      
+      // Also update event with correlation
+      const eventRef = db.collection('users').doc(userId)
+        .collection('calendarEvents').doc(match.event.eventId);
+      
+      batch.update(eventRef, {
+        correlatedRecordings: admin.firestore.FieldValue.arrayUnion({
+          recordingId,
+          matchScore: match.score,
+          matchedBy: 'time'
+        })
+      });
+      
+      batchCount++;
+    });
+    
+    if (batchCount > 0) {
+      await batch.commit();
+    }
+    
+    console.log('[Calendar] Correlated', recordingBestMatches.size, 'recordings with events');
+    
+  } catch (error: any) {
+    console.error('[Calendar] Error correlating events:', error);
+    throw error;
+  }
+}
+
+/**
+ * Sync all active users' calendars (for scheduled function)
+ */
+export async function syncAllActiveCalendars(): Promise<void> {
+  try {
+    console.log('[Calendar] Starting sync for all active users');
+    
+    const usersSnapshot = await db.collectionGroup('calendarAuth')
+      .where('isActive', '==', true)
+      .get();
+    
+    console.log('[Calendar] Found', usersSnapshot.size, 'active calendar connections');
+    
+    const syncPromises = usersSnapshot.docs.map(doc => {
+      const userId = doc.ref.parent.parent!.id;
+      return syncUserCalendar(userId).catch(error => {
+        console.error('[Calendar] Failed to sync user', userId, error);
+        // Continue with other users even if one fails
+      });
+    });
+    
+    await Promise.all(syncPromises);
+    
+    console.log('[Calendar] Completed sync for all users');
+  } catch (error: any) {
+    console.error('[Calendar] Error in syncAllActiveCalendars:', error);
+    throw error;
+  }
+}
