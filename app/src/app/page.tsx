@@ -12,6 +12,7 @@ import { onSnapshot, query, orderBy, collection, where } from 'firebase/firestor
 import { httpsCallable } from 'firebase/functions';
 import { ActionConfirmationModal } from '@/components/ActionConfirmationModal';
 import { RecordingControl } from '@/components/RecordingControl';
+import { CalendarView } from '@/components/CalendarView';
 
 // Icon components
 const HomeIcon = () => (
@@ -101,6 +102,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('transcription');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
   // Real-time transcription states
   const [isRecording, setIsRecording] = useState(false);
@@ -804,7 +806,20 @@ export default function Home() {
     const sessionsMap = new Map<number, any[]>();
     const standaloneRecordings: any[] = [];
 
-    recordings.forEach(recording => {
+    // Filter by selected date if present
+    const filteredRecordings = selectedDate
+      ? recordings.filter(rec => {
+          if (!rec.createdAt) return false;
+          const recDate = rec.createdAt.toDate();
+          return (
+            recDate.getFullYear() === selectedDate.getFullYear() &&
+            recDate.getMonth() === selectedDate.getMonth() &&
+            recDate.getDate() === selectedDate.getDate()
+          );
+        })
+      : recordings;
+
+    filteredRecordings.forEach(recording => {
       if (recording.sessionId) {
         // Grabación con sessionId (parte de auto-chunking)
         if (!sessionsMap.has(recording.sessionId)) {
@@ -894,8 +909,26 @@ export default function Home() {
       {activeNav !== 'dev' && (
       <div className="w-64 bg-black border-r border-white/10 flex flex-col">
         <div className="p-4 border-b border-white/10">
-          <h2 className="text-sm font-medium text-gray-400">Today&apos;s Recordings</h2>
-          <p className="text-xs text-gray-600 mt-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h2 className="text-sm font-medium text-gray-400">
+            {selectedDate ? 'Filtered Recordings' : "Today's Recordings"}
+          </h2>
+          <p className="text-xs text-gray-600 mt-1">
+            {selectedDate 
+              ? selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+              : new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+            }
+          </p>
+          {selectedDate && (
+            <button
+              onClick={() => setSelectedDate(null)}
+              className="mt-2 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Clear filter
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -941,11 +974,26 @@ export default function Home() {
                               onClick={() => setSelectedRecording(chunk)}
                             >
                               <div className="flex items-start justify-between mb-1">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
                                   <span className="text-xs text-red-400">🔴</span>
-                                  <span className="text-xs font-medium text-gray-300">
-                                    Chunk {chunk.chunkNumber}
+                                  <span className="text-xs font-medium text-gray-300 truncate">
+                                    {chunk.title || `Chunk ${chunk.chunkNumber}`}
                                   </span>
+                                  {chunk.analysis?.isGarbage && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded flex-shrink-0" title={chunk.analysis.garbageReason}>
+                                      🗑️
+                                    </span>
+                                  )}
+                                  {chunk.analysis?.needsMerge && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded flex-shrink-0" title="Parece fragmento incompleto">
+                                      🔗
+                                    </span>
+                                  )}
+                                  {chunk.analysis?.splitSuggestion && chunk.analysis.splitSuggestion.length > 0 && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded flex-shrink-0" title="Puede dividirse">
+                                      ✂️
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <span className="text-xs text-gray-600">
@@ -1075,6 +1123,14 @@ export default function Home() {
             setActiveNav('home');
           }
         }} />
+      ) : activeNav === 'calendar' ? (
+        <CalendarView
+          recordings={recordings}
+          onSelectDate={(date) => {
+            setSelectedDate(date);
+            setActiveNav('home');
+          }}
+        />
       ) : activeNav === 'dev' ? (
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           <div className="p-6 space-y-6">
@@ -1551,6 +1607,85 @@ export default function Home() {
                   {/* Análisis Detallado */}
                   {selectedRecording.analysis && (
                     <div className="space-y-4">
+                      {/* Garbage Detection Warning */}
+                      {selectedRecording.analysis.isGarbage && (
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <span className="text-2xl">🗑️</span>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-red-300 text-sm mb-1">Sin contenido útil</h4>
+                              <p className="text-gray-400 text-sm mb-3">
+                                {selectedRecording.analysis.garbageReason || 'Esta grabación no parece tener contenido relevante.'}
+                              </p>
+                              <button
+                                onClick={async () => {
+                                  if (confirm('¿Eliminar esta grabación?')) {
+                                    await deleteRecording(selectedRecording.id);
+                                    setSelectedRecording(null);
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 text-sm transition-colors"
+                              >
+                                Eliminar grabación
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Split Suggestion */}
+                      {selectedRecording.analysis.splitSuggestion && 
+                       selectedRecording.analysis.splitSuggestion.length > 0 && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <span className="text-2xl">✂️</span>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-blue-300 text-sm mb-1">Sugerencia: Dividir grabación</h4>
+                              <p className="text-gray-400 text-sm mb-3">
+                                Esta grabación parece contener múltiples conversaciones separadas:
+                              </p>
+                              <div className="space-y-2">
+                                {selectedRecording.analysis.splitSuggestion.map((suggestion: any, i: number) => (
+                                  <div key={i} className="bg-white/5 rounded p-2">
+                                    <p className="text-white text-sm font-medium mb-1">
+                                      {i + 1}. {suggestion.topic}
+                                    </p>
+                                    <p className="text-gray-500 text-xs mb-1">
+                                      Empieza en: "{suggestion.startMarker}"
+                                    </p>
+                                    <p className="text-gray-400 text-xs">
+                                      {suggestion.reason}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-3">
+                                💡 Funcionalidad de división automática próximamente
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Merge Suggestion */}
+                      {selectedRecording.analysis.needsMerge && (
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <span className="text-2xl">🔗</span>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-yellow-300 text-sm mb-1">Sugerencia: Fragmento incompleto</h4>
+                              <p className="text-gray-400 text-sm mb-3">
+                                Esta grabación parece ser parte de una conversación más larga. 
+                                Considera revisar si hay otros chunks de la misma sesión que deberían combinarse.
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                💡 Funcionalidad de merge automático próximamente
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Calendar Event Correlation */}
                       {selectedRecording.correlatedEvent && (
                         <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">

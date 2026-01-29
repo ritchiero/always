@@ -242,17 +242,57 @@ Responde SOLO con JSON válido, sin markdown ni explicaciones.`
           {
             role: 'user',
             content: `Analiza esta transcripción y extrae:
-1. summary: Resumen breve (1-2 oraciones)
-2. participants: Lista de participantes inferidos (nombres o roles como "Speaker 1", "Entrevistador", etc.)
-3. topics: Temas principales discutidos (máximo 5)
-4. actionItems: Tareas o compromisos mencionados (puede estar vacío)
-5. sentiment: Tono general (positive, neutral, negative)
+
+1. title: Título descriptivo corto (máx 60 caracteres) que capture el tema principal
+   - Ejemplos: "Reunión con Carlos - Presupuesto Q1", "Lluvia de ideas - Nueva feature", "Finanzas personales - Enero"
+   - Si no tiene contenido útil: "Recording sin contenido"
+
+2. summary: Resumen breve (1-2 oraciones)
+
+3. participants: Lista de participantes inferidos (nombres o roles)
+
+4. topics: Temas principales discutidos (máximo 5)
+
+5. actionItems: Tareas o compromisos mencionados con formato:
+   [{"task":"descripción","assignee":"persona (si se menciona)","deadline":"fecha (si se menciona)","status":"pending"}]
+
+6. sentiment: Tono general (positive, neutral, negative)
+
+7. isGarbage: true si la grabación NO tiene contenido útil:
+   - Solo ruido de fondo
+   - Conversación trivial sin información relevante
+   - Fragmentos muy cortos sin contexto
+   - Pruebas técnicas
+   - Silencio prolongado
+
+8. garbageReason: Si isGarbage es true, explicar brevemente por qué
+
+9. splitSuggestion: Si la transcripción contiene múltiples temas COMPLETAMENTE diferentes que deberían ser grabaciones separadas, lista:
+   [{"topic":"Tema 1","startMarker":"frase aproximada donde empieza","reason":"por qué debería dividirse"}]
+   - Solo sugerir si hay cambios CLAROS de contexto (ej: termina reunión, luego empieza otra diferente)
+   - NO dividir conversaciones naturales que fluyen entre temas relacionados
+
+10. needsMerge: true si parece ser un fragmento incompleto de una conversación más larga
+    - Empieza a mitad de frase o sin contexto
+    - Termina abruptamente
+    - Referencias a "lo que dijimos antes" sin ese contexto
 
 Transcripción:
 "${transcript}"
 
-Responde en JSON:
-{"summary":"","participants":[],"topics":[],"actionItems":[],"sentiment":""}`
+Responde en JSON válido:
+{
+  "title": "",
+  "summary": "",
+  "participants": [],
+  "topics": [],
+  "actionItems": [],
+  "sentiment": "",
+  "isGarbage": false,
+  "garbageReason": "",
+  "splitSuggestion": [],
+  "needsMerge": false
+}`
           }
         ],
         temperature: 0.3,
@@ -279,14 +319,19 @@ Responde en JSON:
         };
       }
 
-      // Actualizar documento con análisis
+      // Actualizar documento con análisis completo
       await snapshot.ref.update({
+        title: analysis.title || 'Untitled Recording',
         analysis: {
           summary: analysis.summary || '',
           participants: analysis.participants || [],
           topics: analysis.topics || [],
           actionItems: analysis.actionItems || [],
           sentiment: analysis.sentiment || 'neutral',
+          isGarbage: analysis.isGarbage || false,
+          garbageReason: analysis.garbageReason || '',
+          splitSuggestion: analysis.splitSuggestion || [],
+          needsMerge: analysis.needsMerge || false,
           processedAt: admin.firestore.FieldValue.serverTimestamp(),
           model: 'gpt-4o-mini',
         },
