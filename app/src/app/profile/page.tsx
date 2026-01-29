@@ -144,7 +144,7 @@ export default function ProfilePage() {
                     type="text"
                     value={profile.name}
                     onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                    placeholder="Ej: Ricardo Rodríguez"
+                    placeholder="Tu nombre completo"
                     className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
@@ -157,7 +157,7 @@ export default function ProfilePage() {
                     type="text"
                     value={profile.role}
                     onChange={(e) => setProfile({ ...profile, role: e.target.value })}
-                    placeholder="Ej: CEO & Founder"
+                    placeholder="Ej: Product Manager, Abogado, Consultor..."
                     className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
@@ -171,7 +171,7 @@ export default function ProfilePage() {
                       type="text"
                       value={profile.company}
                       onChange={(e) => setProfile({ ...profile, company: e.target.value })}
-                      placeholder="Ej: Lawgic Legal AI"
+                      placeholder="Nombre de tu empresa"
                       className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                     />
                   </div>
@@ -184,7 +184,7 @@ export default function ProfilePage() {
                       type="text"
                       value={profile.industry}
                       onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
-                      placeholder="Ej: Legal Tech + AI"
+                      placeholder="Ej: Tech, Legal, Educación, Salud..."
                       className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none"
                     />
                   </div>
@@ -206,7 +206,7 @@ export default function ProfilePage() {
                   <textarea
                     value={profile.bio}
                     onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                    placeholder="Ej: Abogado y emprendedor enfocado en educación legal con AI. Builder y product-driven."
+                    placeholder="Describe brevemente quién eres y a qué te dedicas (2-3 frases)"
                     rows={3}
                     className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none resize-none"
                   />
@@ -219,7 +219,7 @@ export default function ProfilePage() {
                   <textarea
                     value={profile.context}
                     onChange={(e) => setProfile({ ...profile, context: e.target.value })}
-                    placeholder="Ej: Uso Always para reuniones con clientes, development sessions, y planning estratégico. Típicamente grabo en español."
+                    placeholder="Ej: Uso Always para reuniones con clientes, sesiones de trabajo, llamadas con el equipo, etc."
                     rows={4}
                     className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none resize-none"
                   />
