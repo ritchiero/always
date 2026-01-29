@@ -190,18 +190,28 @@ export default function Home() {
   const finalTranscriptsRef = useRef<TranscriptSegment[]>([]);
 
   useEffect(() => {
+    // Wait for user to be authenticated
+    if (!user) {
+      setRecordings([]);
+      return;
+    }
+
     // Real-time listener para grabaciones activas (no eliminadas) desde Firestore
     const q = query(
-      collection(db, 'recordings'), 
+      collection(db, 'recordings'),
       where('deletedAt', '==', null),
       orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const recordingsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const recordingsData = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        // SECURITY: Filter by current user's userId
+        .filter((rec: any) => rec.userId === user.uid);
+
       setRecordings(recordingsData);
       console.log('Loaded recordings:', recordingsData.length);
     }, (error) => {
@@ -209,9 +219,15 @@ export default function Home() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    // Wait for user to be authenticated
+    if (!user) {
+      setDeletedCount(0);
+      return;
+    }
+
     // Contar grabaciones eliminadas para el badge de papelera
     const q = query(
       collection(db, 'recordings'),
@@ -219,11 +235,15 @@ export default function Home() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setDeletedCount(snapshot.size);
+      // SECURITY: Filter by current user's userId
+      const userDeletedCount = snapshot.docs.filter(
+        (doc) => doc.data().userId === user.uid
+      ).length;
+      setDeletedCount(userDeletedCount);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Mantener refs sincronizados con estados (para evitar stale closures en intervals)
   useEffect(() => {

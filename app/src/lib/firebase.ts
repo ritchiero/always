@@ -134,6 +134,7 @@ export async function saveRecording(
       duration: duration || 0,
       createdAt: serverTimestamp(),
       status: 'completed',
+      deletedAt: null, // Required for query filter where('deletedAt', '==', null)
     };
 
     // Agregar metadata de chunking si existe

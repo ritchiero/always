@@ -6,13 +6,21 @@ import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestor
 import { recoverRecording, hardDeleteRecording } from '@/lib/firebase';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PapeleraPage() {
+  const { user } = useAuth();
   const [deletedRecordings, setDeletedRecordings] = useState<any[]>([]);
   const [showHardDeleteModal, setShowHardDeleteModal] = useState(false);
   const [recordingToHardDelete, setRecordingToHardDelete] = useState<any>(null);
 
   useEffect(() => {
+    // Wait for user to be authenticated
+    if (!user) {
+      setDeletedRecordings([]);
+      return;
+    }
+
     // Query para grabaciones eliminadas (soft delete)
     const q = query(
       collection(db, 'recordings'),
@@ -21,15 +29,19 @@ export default function PapeleraPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const data = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        // SECURITY: Filter by current user's userId
+        .filter((rec: any) => rec.userId === user.uid);
+
       setDeletedRecordings(data);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const calculateDaysRemaining = (deletedAt: any) => {
     if (!deletedAt) return 30;
