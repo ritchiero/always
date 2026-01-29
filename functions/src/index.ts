@@ -13,6 +13,7 @@ import {
   syncAllActiveCalendars,
   correlateEventsWithRecordings
 } from './calendar-helpers';
+import { generateDailySummary } from './daily-summary';
 
 admin.initializeApp();
 
@@ -827,3 +828,6 @@ export const correlateRecordingsWithEvents = functions
       );
     }
   });
+
+// ==================== Daily Summary ====================
+export { generateDailySummary };
