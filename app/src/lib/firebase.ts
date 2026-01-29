@@ -63,14 +63,31 @@ export async function getRecordings() {
 }
 
 export function onRecordingsChange(callback: (recordings: any[]) => void) {
+  // SECURITY: Filter by current user
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    console.warn('No authenticated user for onRecordingsChange');
+    callback([]);
+    return () => {}; // Return empty unsubscribe function
+  }
+
   const recordingsRef = collection(db, 'recordings');
-  const q = query(recordingsRef, orderBy('createdAt', 'desc'));
+  const q = query(
+    recordingsRef,
+    orderBy('createdAt', 'desc')
+    // Note: Can't add where clause with orderBy on different field
+    // Will filter client-side for now
+  );
   
   return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    const recordings = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const recordings = snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      // SECURITY: Client-side filter by userId
+      .filter((rec: any) => rec.userId === currentUser.uid);
+    
     callback(recordings);
   });
 }
@@ -92,6 +109,12 @@ export async function saveRecording(
   }
 ): Promise<string> {
   try {
+    // SECURITY: Get current user
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('User must be authenticated to save recordings');
+    }
+
     let audioUrl = null;
 
     // Subir audio si existe
@@ -105,6 +128,7 @@ export async function saveRecording(
 
     // Preparar documento con campos base
     const docData: any = {
+      userId: currentUser.uid, // SECURITY: Always include userId
       transcript: { text: transcript },
       audioUrl,
       duration: duration || 0,

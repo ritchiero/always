@@ -932,3 +932,6 @@ export { indexAllRecordings };
 
 // ==================== Reprocessing ====================
 export { reprocessAllUserRecordings };
+
+// ==================== Security & Migration ====================
+export { migrateRecordingsToUser, verifyMigrationStatus } from './migrate-recordings';
