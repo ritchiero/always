@@ -6,7 +6,10 @@
 import * as admin from 'firebase-admin';
 import { google, Auth } from 'googleapis';
 
-const db = admin.firestore();
+// Lazy initialization to avoid Firebase Admin initialization errors
+function getDb() {
+  return admin.firestore();
+}
 
 // OAuth2 Client Configuration
 function getOAuth2Client(): Auth.OAuth2Client {
@@ -51,7 +54,7 @@ export async function exchangeCodeForTokens(
     const primaryCalendar = calendarList.data.items?.find(c => c.primary);
     
     // Store tokens in Firestore
-    await db.collection('users').doc(userId)
+    await getDb().collection('users').doc(userId)
       .collection('calendarAuth').doc('google').set({
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
@@ -85,7 +88,7 @@ export async function exchangeCodeForTokens(
  */
 export async function refreshAccessToken(userId: string): Promise<boolean> {
   try {
-    const authDoc = await db.collection('users').doc(userId)
+    const authDoc = await getDb().collection('users').doc(userId)
       .collection('calendarAuth').doc('google').get();
     
     if (!authDoc.exists) {
@@ -126,7 +129,7 @@ export async function refreshAccessToken(userId: string): Promise<boolean> {
     console.error('[Calendar] Error refreshing token:', error);
     
     // Mark as inactive if auth failed
-    await db.collection('users').doc(userId)
+    await getDb().collection('users').doc(userId)
       .collection('calendarAuth').doc('google').update({
         isActive: false,
         lastError: error.message
@@ -140,7 +143,7 @@ export async function refreshAccessToken(userId: string): Promise<boolean> {
  * Get authenticated OAuth2 client for a user
  */
 async function getAuthenticatedClient(userId: string): Promise<Auth.OAuth2Client | null> {
-  const authDoc = await db.collection('users').doc(userId)
+  const authDoc = await getDb().collection('users').doc(userId)
     .collection('calendarAuth').doc('google').get();
   
   if (!authDoc.exists) {
@@ -238,13 +241,13 @@ export async function syncUserCalendar(userId: string): Promise<void> {
     console.log('[Calendar] Found', events.length, 'events');
     
     // Store/update events in Firestore (batch write)
-    const batch = db.batch();
+    const batch = getDb().batch();
     let batchCount = 0;
     
     for (const event of events) {
       if (!event.id) continue;
       
-      const eventRef = db.collection('users').doc(userId)
+      const eventRef = getDb().collection('users').doc(userId)
         .collection('calendarEvents').doc(event.id);
       
       const eventData = {
@@ -295,7 +298,7 @@ export async function syncUserCalendar(userId: string): Promise<void> {
     }
     
     // Update last sync time
-    await db.collection('users').doc(userId)
+    await getDb().collection('users').doc(userId)
       .collection('calendarAuth').doc('google').update({
         lastSync: admin.firestore.FieldValue.serverTimestamp(),
         lastError: null
@@ -310,7 +313,7 @@ export async function syncUserCalendar(userId: string): Promise<void> {
     console.error('[Calendar] Error syncing calendar for user', userId, error);
     
     // Store error in auth doc
-    await db.collection('users').doc(userId)
+    await getDb().collection('users').doc(userId)
       .collection('calendarAuth').doc('google').update({
         lastError: error.message,
         isActive: error.code === 401 ? false : true
@@ -334,14 +337,14 @@ export async function correlateEventsWithRecordings(userId: string): Promise<voi
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
     
-    const eventsSnapshot = await db.collection('users').doc(userId)
+    const eventsSnapshot = await getDb().collection('users').doc(userId)
       .collection('calendarEvents')
       .where('startTime', '>=', admin.firestore.Timestamp.fromDate(todayStart))
       .where('startTime', '<=', admin.firestore.Timestamp.fromDate(todayEnd))
       .get();
     
     // Get today's recordings (not deleted)
-    const recordingsSnapshot = await db.collection('recordings')
+    const recordingsSnapshot = await getDb().collection('recordings')
       .where('userId', '==', userId)
       .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(todayStart))
       .where('deletedAt', '==', null)
@@ -391,7 +394,7 @@ export async function correlateEventsWithRecordings(userId: string): Promise<voi
     console.log('[Calendar] Found', matches.length, 'potential matches');
     
     // Apply matches (keep highest score per recording)
-    const batch = db.batch();
+    const batch = getDb().batch();
     let batchCount = 0;
     
     const recordingBestMatches = new Map<string, any>();
@@ -403,7 +406,7 @@ export async function correlateEventsWithRecordings(userId: string): Promise<voi
     });
     
     recordingBestMatches.forEach((match, recordingId) => {
-      const recRef = db.collection('recordings').doc(recordingId);
+      const recRef = getDb().collection('recordings').doc(recordingId);
       
       batch.update(recRef, {
         correlatedEvent: {
@@ -421,7 +424,7 @@ export async function correlateEventsWithRecordings(userId: string): Promise<voi
       batchCount++;
       
       // Also update event with correlation
-      const eventRef = db.collection('users').doc(userId)
+      const eventRef = getDb().collection('users').doc(userId)
         .collection('calendarEvents').doc(match.event.eventId);
       
       batch.update(eventRef, {
@@ -454,7 +457,7 @@ export async function syncAllActiveCalendars(): Promise<void> {
   try {
     console.log('[Calendar] Starting sync for all active users');
     
-    const usersSnapshot = await db.collectionGroup('calendarAuth')
+    const usersSnapshot = await getDb().collectionGroup('calendarAuth')
       .where('isActive', '==', true)
       .get();
     
