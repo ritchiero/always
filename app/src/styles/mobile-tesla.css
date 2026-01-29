@@ -1,0 +1,121 @@
+/* Mobile Tesla Design System */
+/* Variables globales */
+:root {
+  --bg: #000000;
+  --surface: #171717;
+  --border: #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --accent: #3b82f6;
+  --success: #10b981;
+  --header-height: 64px;
+}
+
+/* Mobile-first Header */
+@media (max-width: 768px) {
+  .mobile-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000;
+  }
+
+  .mobile-hamburger {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  .mobile-hamburger span {
+    width: 24px;
+    height: 2px;
+    background: var(--text-primary);
+    transition: all 0.3s;
+    border-radius: 2px;
+  }
+
+  .mobile-hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translate(7px, 7px);
+  }
+
+  .mobile-hamburger.active span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .mobile-hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -7px);
+  }
+
+  .mobile-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 999;
+    overflow-y: auto;
+  }
+
+  .mobile-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .mobile-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 998;
+  }
+
+  .mobile-overlay.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Hide desktop sidebars on mobile */
+  .desktop-sidebar {
+    display: none;
+  }
+
+  /* Adjust main content for mobile header */
+  .mobile-main-content {
+    padding-top: var(--header-height);
+    min-height: 100vh;
+  }
+}
+
+/* Desktop: keep original layout */
+@media (min-width: 769px) {
+  .mobile-header,
+  .mobile-sidebar,
+  .mobile-overlay {
+    display: none;
+  }
+
+  .mobile-main-content {
+    padding-top: 0;
+  }
+}

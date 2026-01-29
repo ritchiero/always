@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import '../styles/globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { MobileWrapper } from '@/components/MobileWrapper'
 
 export const metadata: Metadata = {
   title: 'Always - Continuous Recording App',
@@ -16,7 +17,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          {children}
+          <MobileWrapper>
+            {children}
+          </MobileWrapper>
         </AuthProvider>
       </body>
     </html>
