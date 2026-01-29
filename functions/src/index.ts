@@ -315,11 +315,19 @@ Responde SOLO con JSON válido, sin markdown ni explicaciones.`
 
 1. title: Título descriptivo corto (máx 60 caracteres) que capture el tema principal
    - Ejemplos: "Reunión con Carlos - Presupuesto Q1", "Lluvia de ideas - Nueva feature", "Finanzas personales - Enero"
+   - Si identificas nombres de personas, INCLÚYELOS en el título
    - Si no tiene contenido útil: "Recording sin contenido"
 
 2. summary: Resumen breve (1-2 oraciones)
 
-3. participants: Lista de participantes inferidos (nombres o roles)
+3. participants: IMPORTANTE - Lista de NOMBRES de personas mencionadas en la conversación
+   - Busca nombres propios mencionados directamente (ej: "Rodrigo", "Juan Pérez", "María")
+   - Incluye vocativos (cuando alguien llama a otra persona: "Estimado, Rodrigo...", "Gracias, Carlos")
+   - Incluye despedidas con nombres ("Adiós Rodrigo", "Fuerte abrazo, María")
+   - Incluye referencias directas ("Juan Pérez dijo...", "como mencionó Rodrigo...")
+   - SIEMPRE extrae nombres si hay alguno mencionado, no importa cuántas veces
+   - Si NO hay nombres mencionados, deja la lista vacía []
+   - NO inventes nombres ni uses roles genéricos
 
 4. topics: Temas principales discutidos (máximo 5)
 

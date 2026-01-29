@@ -1764,10 +1764,12 @@ export default function Home() {
                       {/* Participants */}
                       {selectedRecording.analysis.participants && selectedRecording.analysis.participants.length > 0 && (
                         <div className="bg-white/5 rounded-lg p-4">
-                          <h4 className="font-medium text-gray-400 mb-2 text-sm">Participants</h4>
+                          <h4 className="font-medium text-gray-400 mb-2 text-sm flex items-center gap-2">
+                            <span>👥</span> Participantes
+                          </h4>
                           <div className="flex flex-wrap gap-2">
                             {selectedRecording.analysis.participants.map((participant: string, idx: number) => (
-                              <span key={idx} className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-sm">
+                              <span key={idx} className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-sm font-medium">
                                 {participant}
                               </span>
                             ))}
