@@ -117,6 +117,8 @@ export default function Home() {
   const [chatMessage, setChatMessage] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState<any>(null);
   
   // Real-time transcription states
   const [isRecording, setIsRecording] = useState(false);
@@ -631,6 +633,54 @@ export default function Home() {
       setError(errorMessage);
     } finally {
       setIsReprocessing(false);
+    }
+  };
+
+  const verifyMigration = async () => {
+    try {
+      setError(null);
+      console.log('🔍 Verificando estado de migración...');
+
+      const verifyFn = httpsCallable(functions, 'verifyMigrationStatus');
+      const result = await verifyFn();
+
+      setMigrationStatus(result.data);
+      console.log('📊 Migration status:', result.data);
+    } catch (err: any) {
+      console.error('Error verificando migración:', err);
+      setError(err.message || 'Error al verificar migración');
+    }
+  };
+
+  const runMigration = async () => {
+    if (!confirm('¿Estás seguro de ejecutar la migración? Esto asignará userId a todas las grabaciones sin userId.')) {
+      return;
+    }
+
+    try {
+      setIsMigrating(true);
+      setError(null);
+      console.log('🔄 Ejecutando migración...');
+
+      const migrateFn = httpsCallable(functions, 'migrateRecordingsToUser');
+      const result = await migrateFn();
+
+      const data = result.data as any;
+      setMigrationStatus(data);
+      console.log('✅ Migration complete:', data);
+
+      setError(`✅ Migración exitosa: ${data.migrated} grabaciones migradas`);
+      setTimeout(() => setError(null), 8000);
+
+      // Refresh recordings after migration
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (err: any) {
+      console.error('Error ejecutando migración:', err);
+      setError(err.message || 'Error al ejecutar migración');
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -1465,6 +1515,19 @@ export default function Home() {
                 >
                   {isReprocessing ? '⏳ Procesando...' : '🔄 Reprocess All'}
                 </button>
+                <button
+                  onClick={verifyMigration}
+                  className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors text-sm"
+                >
+                  🔍 Verify Migration
+                </button>
+                <button
+                  onClick={runMigration}
+                  disabled={isMigrating}
+                  className="px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50 text-sm"
+                >
+                  {isMigrating ? '⏳ Migrando...' : '🔒 Run Migration'}
+                </button>
                 <Link
                   href="/analisis"
                   className="px-4 py-2 bg-pink-500/20 text-pink-400 rounded-lg hover:bg-pink-500/30 transition-colors text-sm"
@@ -1506,6 +1569,19 @@ export default function Home() {
                     <div>✓ Procesadas: {reprocessResult.processed}</div>
                     {(reprocessResult as any).skipped > 0 && <div>⏭️ Saltadas: {(reprocessResult as any).skipped} (sin transcripción)</div>}
                     {reprocessResult.failed > 0 && <div>❌ Fallidas: {reprocessResult.failed}</div>}
+                  </div>
+                </div>
+              )}
+              {migrationStatus && (
+                <div className="mt-3 p-3 rounded-lg text-sm bg-blue-500/10 border border-blue-500/30">
+                  <div className="font-medium mb-1 text-blue-300">📊 Estado de Migración</div>
+                  <div className="text-xs space-y-1">
+                    <div>Total: {migrationStatus.total || migrationStatus.migrated || 0} grabaciones</div>
+                    {migrationStatus.yourRecordings !== undefined && <div>✓ Tuyas: {migrationStatus.yourRecordings}</div>}
+                    {migrationStatus.needsMigration !== undefined && <div>⚠️ Sin userId: {migrationStatus.needsMigration}</div>}
+                    {migrationStatus.migrated !== undefined && <div>✅ Migradas: {migrationStatus.migrated}</div>}
+                    {migrationStatus.userEmail && <div>👤 Usuario: {migrationStatus.userEmail}</div>}
+                    {migrationStatus.message && <div className="mt-2 text-green-300">{migrationStatus.message}</div>}
                   </div>
                 </div>
               )}

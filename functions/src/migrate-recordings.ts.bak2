@@ -1,0 +1,130 @@
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
+
+// Lazy init to avoid Firebase Admin initialization errors
+function getDb() { return admin.firestore(); }
+
+/**
+ * Migrate legacy recordings to include userId
+ * 
+ * SECURITY: Only the authenticated user can migrate their own recordings
+ * This assigns all recordings without userId to the calling user
+ */
+export const migrateRecordingsToUser = functions
+  .runWith({
+    timeoutSeconds: 540, // 9 minutes
+    memory: '1GB',
+  })
+  .https.onCall(async (data, context) => {
+    // Authentication required
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'User must be authenticated to migrate recordings'
+      );
+    }
+
+    const userId = context.auth.uid;
+    const userEmail = context.auth.token.email;
+
+    console.log(`[migrateRecordingsToUser] Starting migration for user ${userId} (${userEmail})`);
+
+    try {
+      // Find all recordings WITHOUT userId
+      const recordingsRef = db.collection('recordings');
+      const snapshot = await recordingsRef.get();
+
+      console.log(`[migrateRecordingsToUser] Found ${snapshot.size} total recordings`);
+
+      // Filter for recordings without userId OR with null userId
+      const recordingsToMigrate = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        return !data.userId || data.userId === null;
+      });
+
+      console.log(`[migrateRecordingsToUser] ${recordingsToMigrate.length} recordings need userId`);
+
+      if (recordingsToMigrate.length === 0) {
+        return {
+          success: true,
+          migrated: 0,
+          message: 'No recordings to migrate',
+        };
+      }
+
+      // Batch update (max 500 per batch)
+      const batchSize = 500;
+      let totalMigrated = 0;
+
+      for (let i = 0; i < recordingsToMigrate.length; i += batchSize) {
+        const batch = db.batch();
+        const batchDocs = recordingsToMigrate.slice(i, i + batchSize);
+
+        batchDocs.forEach(doc => {
+          batch.update(doc.ref, {
+            userId: userId,
+            migratedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        });
+
+        await batch.commit();
+        totalMigrated += batchDocs.length;
+
+        console.log(`[migrateRecordingsToUser] Migrated batch: ${totalMigrated}/${recordingsToMigrate.length}`);
+      }
+
+      console.log(`[migrateRecordingsToUser] Migration complete: ${totalMigrated} recordings`);
+
+      return {
+        success: true,
+        migrated: totalMigrated,
+        userId: userId,
+        userEmail: userEmail,
+        message: `Successfully migrated ${totalMigrated} recordings`,
+      };
+    } catch (error: any) {
+      console.error('[migrateRecordingsToUser] Error:', error);
+
+      throw new functions.https.HttpsError(
+        'internal',
+        `Migration failed: ${error.message || 'Unknown error'}`
+      );
+    }
+  });
+
+/**
+ * Verify migration status
+ * Returns count of recordings with/without userId
+ */
+export const verifyMigrationStatus = functions
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'User must be authenticated'
+      );
+    }
+
+    const userId = context.auth.uid;
+
+    try {
+      const recordingsRef = db.collection('recordings');
+      const allSnapshot = await recordingsRef.get();
+
+      const withUserId = allSnapshot.docs.filter(doc => doc.data().userId === userId);
+      const withoutUserId = allSnapshot.docs.filter(doc => !doc.data().userId);
+      const otherUsers = allSnapshot.docs.filter(doc => 
+        doc.data().userId && doc.data().userId !== userId
+      );
+
+      return {
+        total: allSnapshot.size,
+        yourRecordings: withUserId.length,
+        needsMigration: withoutUserId.length,
+        otherUsers: otherUsers.length,
+      };
+    } catch (error: any) {
+      console.error('[verifyMigrationStatus] Error:', error);
+      throw new functions.https.HttpsError('internal', error.message);
+    }
+  });

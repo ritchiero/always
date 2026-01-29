@@ -1,0 +1,289 @@
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
+
+// Lazy init to avoid Firebase Admin initialization errors
+function getDb() { return admin.firestore(); }
+
+interface RecordingData {
+  time: any;
+  summary: string;
+  topics: string[];
+  actionItems: any[];
+  duration?: number;
+}
+
+interface UserProfile {
+  name: string;
+  role: string;
+  company?: string;
+  industry?: string;
+  bio: string;
+  context: string;
+  reportTone: 'professional' | 'friendly' | 'concise';
+  language: 'es' | 'en';
+}
+
+interface DailySummary {
+  date: string;
+  greeting: string;
+  overview: string;
+  stats: {
+    totalRecordings: number;
+    totalMinutes: number;
+    meetingsCount: number;
+    workSessionsCount: number;
+  };
+  topics: Array<{
+    name: string;
+    percentage: number;
+  }>;
+  achievements: string[];
+  pending: string[];
+  vibe: 'productive' | 'stressed' | 'creative' | 'routine';
+  insight: string;
+}
+
+export const generateDailySummary = functions
+  .runWith({
+    secrets: ['OPENAI_API_KEY'],
+    timeoutSeconds: 120,
+    memory: '512MB',
+  })
+  .https.onCall(async (data: { date?: string }, context) => {
+    // Authentication check
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'User must be authenticated'
+      );
+    }
+
+    const userId = context.auth.uid;
+    const targetDate = data.date || new Date().toISOString().split('T')[0];
+
+    try {
+      // 1. Get user profile
+      const profileRef = db
+        .collection('users')
+        .doc(userId)
+        .collection('profile')
+        .doc('main');
+      const profileSnap = await profileRef.get();
+
+      if (!profileSnap.exists) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'User profile not found. Please set up your profile first.'
+        );
+      }
+
+      const userProfile = profileSnap.data() as UserProfile;
+
+      // 2. Get all recordings from that day
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const recordingsRef = db
+        .collection('users')
+        .doc(userId)
+        .collection('recordings')
+        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startOfDay))
+        .where('createdAt', '<=', admin.firestore.Timestamp.fromDate(endOfDay));
+
+      const recordingsSnap = await recordingsRef.get();
+
+      if (recordingsSnap.empty) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'No recordings found for this date'
+        );
+      }
+
+      // 3. Process recordings data
+      const recordings: RecordingData[] = [];
+      let totalMinutes = 0;
+
+      recordingsSnap.forEach((doc) => {
+        const data = doc.data();
+        const duration = data.duration || 0;
+        totalMinutes += Math.floor(duration / 60);
+
+        recordings.push({
+          time: data.createdAt,
+          summary: data.analysis?.summary || '',
+          topics: data.analysis?.topics || [],
+          actionItems: data.analysis?.actionItems || [],
+          duration: duration,
+        });
+      });
+
+      // 4. Build content for GPT
+      const dayContent = recordings
+        .map((r, i) => {
+          const time = r.time.toDate
+            ? r.time.toDate().toLocaleTimeString('es-MX', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : 'N/A';
+          return `
+Recording ${i + 1} (${time}):
+Summary: ${r.summary}
+Topics: ${r.topics.join(', ')}
+Action Items: ${r.actionItems.map((ai: any) => ai.task).join(', ')}
+---`;
+        })
+        .join('\n');
+
+      // 5. Generate summary with OpenAI
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+      if (!openaiApiKey) {
+        throw new functions.https.HttpsError(
+          'internal',
+          'OpenAI API key not configured'
+        );
+      }
+
+      const prompt = `
+Eres un asistente personal que crea resúmenes diarios personalizados.
+
+SOBRE EL USUARIO:
+Nombre: ${userProfile.name}
+Rol: ${userProfile.role}
+${userProfile.company ? `Empresa: ${userProfile.company}` : ''}
+${userProfile.industry ? `Industria: ${userProfile.industry}` : ''}
+Bio: ${userProfile.bio}
+Contexto: ${userProfile.context}
+
+ACTIVIDAD DEL DÍA (${targetDate}):
+Total de grabaciones: ${recordings.length}
+Tiempo total: ${totalMinutes} minutos
+
+CONTENIDO DE LAS GRABACIONES:
+${dayContent}
+
+INSTRUCCIONES:
+Genera un resumen del día en formato JSON con esta estructura:
+{
+  "greeting": "Saludo personalizado (ej: 'Hola Ricardo,' o 'Hey Ricardo,'))",
+  "overview": "1-2 frases describiendo el tipo de día que tuvo (productivo, intenso, etc)",
+  "stats": {
+    "totalRecordings": ${recordings.length},
+    "totalMinutes": ${totalMinutes},
+    "meetingsCount": <estima cuántas fueron reuniones>,
+    "workSessionsCount": <estima cuántas fueron sesiones de trabajo>
+  },
+  "topics": [
+    {"name": "Nombre del tema principal", "percentage": <porcentaje de tiempo>},
+    {"name": "Segundo tema", "percentage": <porcentaje>},
+    {"name": "Tercer tema", "percentage": <porcentaje>}
+  ],
+  "achievements": [
+    "Logro 1 extraído de action items completados o menciones",
+    "Logro 2",
+    "Logro 3"
+  ],
+  "pending": [
+    "Tarea pendiente 1 (de action items no completados)",
+    "Tarea pendiente 2",
+    "Tarea pendiente 3"
+  ],
+  "vibe": "productive|stressed|creative|routine",
+  "insight": "Una observación o sugerencia inteligente sobre el día (1 frase)"
+}
+
+TONO: ${
+        userProfile.reportTone === 'professional'
+          ? 'Profesional y formal'
+          : userProfile.reportTone === 'friendly'
+          ? 'Amigable y cercano'
+          : 'Conciso y directo al punto'
+      }
+IDIOMA: ${userProfile.language === 'es' ? 'Español' : 'English'}
+
+IMPORTANTE:
+- Los topics deben sumar 100%
+- Extrae achievements reales del contenido
+- Pending items deben ser específicos
+- El insight debe ser útil y personalizado
+- Responde SOLO con el JSON, sin markdown ni explicaciones
+`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a helpful assistant that generates daily summaries in JSON format.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 1500,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('OpenAI API error:', error);
+        throw new functions.https.HttpsError('internal', 'Failed to generate summary');
+      }
+
+      const openaiResult = await response.json();
+      const summaryText = openaiResult.choices[0].message.content;
+
+      // Parse JSON response
+      let summary: DailySummary;
+      try {
+        // Remove markdown code blocks if present
+        const cleanedText = summaryText
+          .replace(/```json\n?/g, '')
+          .replace(/```\n?/g, '')
+          .trim();
+        summary = JSON.parse(cleanedText);
+        summary.date = targetDate;
+      } catch (parseError) {
+        console.error('Failed to parse GPT response:', summaryText);
+        throw new functions.https.HttpsError(
+          'internal',
+          'Failed to parse AI response'
+        );
+      }
+
+      // 6. Save to Firestore
+      const summaryRef = db
+        .collection('users')
+        .doc(userId)
+        .collection('dailySummaries')
+        .doc(targetDate);
+
+      await summaryRef.set({
+        ...summary,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return summary;
+    } catch (error: any) {
+      console.error('Error generating daily summary:', error);
+
+      // Re-throw HttpsError as-is
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+
+      // Wrap other errors
+      throw new functions.https.HttpsError('internal', error.message || 'Unknown error');
+    }
+  });
