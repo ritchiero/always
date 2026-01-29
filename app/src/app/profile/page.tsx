@@ -71,7 +71,11 @@ export default function ProfilePage() {
       });
 
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      
+      // Scroll to top to show success message
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      setTimeout(() => setSuccess(false), 5000);
     } catch (error) {
       console.error('Error saving profile:', error);
       alert('Error al guardar perfil');
@@ -319,6 +323,18 @@ export default function ProfilePage() {
                 Entre más contexto proporciones, más relevantes serán tus resúmenes.
               </p>
             </div>
+
+            {/* Success Message (near button) */}
+            {success && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 animate-pulse">
+                <p className="text-green-400 font-medium flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  ✅ Perfil guardado exitosamente
+                </p>
+              </div>
+            )}
 
             {/* Save Button */}
             <div className="flex gap-4">
