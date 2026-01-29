@@ -3,7 +3,8 @@ import * as admin from 'firebase-admin';
 import { Pinecone } from '@pinecone-database/pinecone';
 import OpenAI from 'openai';
 
-const db = admin.firestore();
+// Lazy init to avoid Firebase Admin initialization errors
+function getDb() { return admin.firestore(); }
 
 // Initialize Pinecone
 const pinecone = new Pinecone({
@@ -52,7 +53,7 @@ export const indexAllRecordings = functions
       const index = pinecone.index('always-transcripts');
 
       // Get all recordings for this user
-      const recordingsRef = db
+      const recordingsRef = getDb()
         .collection('users')
         .doc(userId)
         .collection('recordings');
@@ -213,7 +214,7 @@ export const indexRecording = async (
     console.log(`[indexRecording] Indexed recording ${recordingId}`);
 
     // Mark as indexed in Firestore
-    await db
+    await getDb()
       .collection('users')
       .doc(userId)
       .collection('recordings')

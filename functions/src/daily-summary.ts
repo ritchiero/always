@@ -1,7 +1,8 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+// Lazy init to avoid Firebase Admin initialization errors
+function getDb() { return admin.firestore(); }
 
 interface RecordingData {
   time: any;
@@ -62,7 +63,7 @@ export const generateDailySummary = functions
 
     try {
       // 1. Get user profile
-      const profileRef = db
+      const profileRef = getDb()
         .collection('users')
         .doc(userId)
         .collection('profile')
@@ -84,7 +85,7 @@ export const generateDailySummary = functions
       const endOfDay = new Date(targetDate);
       endOfDay.setHours(23, 59, 59, 999);
 
-      const recordingsRef = db
+      const recordingsRef = getDb()
         .collection('users')
         .doc(userId)
         .collection('recordings')
@@ -262,7 +263,7 @@ IMPORTANTE:
       }
 
       // 6. Save to Firestore
-      const summaryRef = db
+      const summaryRef = getDb()
         .collection('users')
         .doc(userId)
         .collection('dailySummaries')

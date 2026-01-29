@@ -19,7 +19,8 @@ import { reprocessAllUserRecordings } from './reprocess-all';
 
 admin.initializeApp();
 
-const db = admin.firestore();
+// Lazy init to avoid Firebase Admin initialization errors
+function getDb() { return admin.firestore(); }
 const storage = admin.storage();
 
 // Inicializar clientes - lazy initialization para secrets
@@ -83,7 +84,7 @@ export const processAudio = functions.storage
     });
     
     // Guardar en Firestore
-    const docRef = await db.collection('recordings').add({
+    const docRef = await getDb().collection('recordings').add({
       audioPath: object.name,
       transcript: transcript.text,
       utterances: transcript.utterances,
@@ -111,7 +112,7 @@ export const processAudio = functions.storage
 // Generar resumen con Claude
 export const generateSummary = functions.https.onCall(async (data, context) => {
   const { recordingId } = data;
-  const doc = await db.collection('recordings').doc(recordingId).get();
+  const doc = await getDb().collection('recordings').doc(recordingId).get();
   const recording = doc.data();
   
   const message = await anthropic.messages.create({
@@ -135,7 +136,7 @@ Responde en JSON con esta estructura:
   
   const analysis = JSON.parse(message.content[0].type === 'text' ? message.content[0].text : '{}');
   
-  await db.collection('recordings').doc(recordingId).update({
+  await getDb().collection('recordings').doc(recordingId).update({
     summary: analysis.summary,
     keyPoints: analysis.keyPoints,
     actionItems: analysis.actionItems,
@@ -239,7 +240,7 @@ export const chat = functions.https.onCall(async (data, context) => {
   
   let contextText = '';
   if (recordingId) {
-    const doc = await db.collection('recordings').doc(recordingId).get();
+    const doc = await getDb().collection('recordings').doc(recordingId).get();
     contextText = doc.data()?.transcript || '';
   }
   
@@ -466,7 +467,7 @@ export const reprocessUnanalyzedRecordings = functions
   console.log('Starting reprocess of unanalyzed recordings...');
 
   // Obtener recordings sin análisis
-  const snapshot = await db.collection('recordings')
+  const snapshot = await getDb().collection('recordings')
     .where('status', '!=', 'processed')
     .limit(50) // Limitar para evitar timeouts
     .get();
@@ -586,7 +587,7 @@ export const generateActionDraft = functions
 
     try {
       // Obtener la grabación para el contexto
-      const recordingDoc = await db.collection('recordings').doc(recordingId).get();
+      const recordingDoc = await getDb().collection('recordings').doc(recordingId).get();
       
       if (!recordingDoc.exists) {
         throw new functions.https.HttpsError('not-found', 'Grabación no encontrada');
@@ -678,10 +679,10 @@ export const executeAction = functions
       };
 
       // Guardar en colección de acciones ejecutadas
-      await db.collection('executedActions').add(executionRecord);
+      await getDb().collection('executedActions').add(executionRecord);
 
       // Actualizar el status del action item en la grabación
-      const recordingRef = db.collection('recordings').doc(recordingId);
+      const recordingRef = getDb().collection('recordings').doc(recordingId);
       const recordingDoc = await recordingRef.get();
       
       if (recordingDoc.exists) {
@@ -864,7 +865,7 @@ export const disconnectGoogleCalendar = functions
       console.log('[Calendar] Disconnecting calendar for user:', userId);
       
       // Mark as inactive (don't delete - keep for audit)
-      await db.collection('users').doc(userId)
+      await getDb().collection('users').doc(userId)
         .collection('calendarAuth').doc('google').update({
           isActive: false,
           disconnectedAt: admin.firestore.FieldValue.serverTimestamp()

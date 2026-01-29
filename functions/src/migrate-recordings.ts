@@ -1,7 +1,8 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+// Lazy init to avoid Firebase Admin initialization errors
+function getDb() { return admin.firestore(); }
 
 /**
  * Migrate legacy recordings to include userId
@@ -30,7 +31,7 @@ export const migrateRecordingsToUser = functions
 
     try {
       // Find all recordings WITHOUT userId
-      const recordingsRef = db.collection('recordings');
+      const recordingsRef = getDb().collection('recordings');
       const snapshot = await recordingsRef.get();
 
       console.log(`[migrateRecordingsToUser] Found ${snapshot.size} total recordings`);
@@ -56,7 +57,7 @@ export const migrateRecordingsToUser = functions
       let totalMigrated = 0;
 
       for (let i = 0; i < recordingsToMigrate.length; i += batchSize) {
-        const batch = db.batch();
+        const batch = getDb().batch();
         const batchDocs = recordingsToMigrate.slice(i, i + batchSize);
 
         batchDocs.forEach(doc => {
@@ -107,7 +108,7 @@ export const verifyMigrationStatus = functions
     const userId = context.auth.uid;
 
     try {
-      const recordingsRef = db.collection('recordings');
+      const recordingsRef = getDb().collection('recordings');
       const allSnapshot = await recordingsRef.get();
 
       const withUserId = allSnapshot.docs.filter(doc => doc.data().userId === userId);

@@ -2,7 +2,8 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import OpenAI from 'openai';
 
-const db = admin.firestore();
+// Lazy init to avoid Firebase Admin initialization errors
+function getDb() { return admin.firestore(); }
 
 let openaiClient: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -44,7 +45,7 @@ export const reprocessAllUserRecordings = functions
 
     try {
       // Get all recordings for this user
-      let query = db
+      let query = getDb()
         .collection('users')
         .doc(userId)
         .collection('recordings')
