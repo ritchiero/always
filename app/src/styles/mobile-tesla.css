@@ -13,6 +13,17 @@
 
 /* Mobile-first Header */
 @media (max-width: 768px) {
+  /* Force hide desktop layout on mobile */
+  main.flex.h-screen > div:first-child,
+  main.flex.h-screen > div:nth-child(2) {
+    display: none !important;
+  }
+
+  /* Force mobile layout */
+  main.flex.h-screen {
+    display: block !important;
+  }
+
   .mobile-header {
     position: fixed;
     top: 0;
@@ -95,15 +106,17 @@
     pointer-events: all;
   }
 
-  /* Hide desktop sidebars on mobile */
-  .desktop-sidebar {
-    display: none;
-  }
-
   /* Adjust main content for mobile header */
   .mobile-main-content {
     padding-top: var(--header-height);
     min-height: 100vh;
+  }
+
+  /* Mobile content should take full width */
+  main.flex.h-screen > div:last-child {
+    width: 100% !important;
+    min-width: 100% !important;
+    padding: 0 !important;
   }
 }
 
