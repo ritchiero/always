@@ -1,8 +1,20 @@
 rules_version = "2";
 service firebase.storage {
   match /b/{bucket}/o {
+    // Funcion para verificar usuario autorizado
+    function isAuthorized() {
+      return request.auth != null &&
+             request.auth.token.email == 'ricardo.rodriguez@getlawgic.com';
+    }
+
+    // Archivos de audio - solo usuario autorizado
+    match /audio/{audioFile} {
+      allow read, write: if isAuthorized();
+    }
+
+    // Cualquier otro archivo - solo usuario autorizado
     match /{allPaths=**} {
-      allow read, write: if true;
+      allow read, write: if isAuthorized();
     }
   }
 }

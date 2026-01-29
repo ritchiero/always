@@ -1,8 +1,20 @@
 rules_version = "2";
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Funcion para verificar usuario autorizado
+    function isAuthorized() {
+      return request.auth != null &&
+             request.auth.token.email == 'ricardo.rodriguez@getlawgic.com';
+    }
+
+    // Reglas para recordings
+    match /recordings/{recordingId} {
+      allow read, write: if isAuthorized();
+    }
+
+    // Cualquier otra coleccion - solo usuarios autorizados
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAuthorized();
     }
   }
 }

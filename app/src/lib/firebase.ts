@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, query, orderBy, onSnapshot, QuerySnapshot, DocumentData, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, query, orderBy, onSnapshot, QuerySnapshot, DocumentData, addDoc, serverTimestamp, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, ref as storageRef } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
@@ -13,6 +13,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Verificar que las variables de entorno existan
+console.log('[Firebase] Config check:', {
+  apiKey: firebaseConfig.apiKey ? '✓' : '✗ MISSING',
+  authDomain: firebaseConfig.authDomain ? '✓' : '✗ MISSING',
+  projectId: firebaseConfig.projectId ? '✓' : '✗ MISSING',
+  storageBucket: firebaseConfig.storageBucket ? '✓' : '✗ MISSING',
+});
+
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const db = getFirestore(app);
@@ -22,7 +30,7 @@ export const functions = getFunctions(app, 'us-central1'); // Especificar regió
 export const googleProvider = new GoogleAuthProvider();
 
 // Production mode - no emulators
-console.log('Firebase initialized - Production mode');
+console.log('[Firebase] Initialized - Production mode');
 
 // Audio recording functions
 export async function uploadAudio(audioBlob: Blob): Promise<string> {
@@ -128,6 +136,143 @@ export async function saveRecording(
     return docRef.id;
   } catch (error) {
     console.error('Error guardando grabación:', error);
+    throw error;
+  }
+}
+
+/**
+ * Soft delete: Marca una grabación como eliminada
+ * @param recordingId ID de la grabación
+ * @param deleteActionItems Si true, marca los action items como eliminados también
+ */
+export async function deleteRecording(
+  recordingId: string,
+  deleteActionItems: boolean = false
+): Promise<void> {
+  try {
+    const docRef = doc(db, 'recordings', recordingId);
+    
+    if (deleteActionItems) {
+      // Leer el documento para obtener action items
+      const docSnap = await getDoc(docRef);
+      const data = docSnap.data();
+      
+      if (data?.analysis?.actionItems) {
+        // Marcar cada action item como deleted
+        // Nota: serverTimestamp() no funciona dentro de arrays, usar Date.toISOString()
+        const updatedActionItems = data.analysis.actionItems.map((item: any) => ({
+          ...item,
+          status: 'discarded',
+          discardedReason: 'Grabación eliminada',
+          completedAt: new Date().toISOString()
+        }));
+        
+        await updateDoc(docRef, {
+          deletedAt: serverTimestamp(),
+          'analysis.actionItems': updatedActionItems
+        });
+      } else {
+        // No hay action items, solo marcar grabación
+        await updateDoc(docRef, {
+          deletedAt: serverTimestamp()
+        });
+      }
+    } else {
+      // Solo marcar grabación como eliminada
+      await updateDoc(docRef, {
+        deletedAt: serverTimestamp()
+      });
+    }
+    
+    console.log(`Recording ${recordingId} moved to trash`);
+  } catch (error) {
+    console.error('Error deleting recording:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera una grabación desde la papelera
+ */
+export async function recoverRecording(recordingId: string): Promise<void> {
+  try {
+    const docRef = doc(db, 'recordings', recordingId);
+    await updateDoc(docRef, {
+      deletedAt: null
+    });
+    console.log(`Recording ${recordingId} recovered from trash`);
+  } catch (error) {
+    console.error('Error recovering recording:', error);
+    throw error;
+  }
+}
+
+/**
+ * Hard delete: Elimina permanentemente una grabación y su audio
+ */
+export async function hardDeleteRecording(recordingId: string): Promise<void> {
+  try {
+    const docRef = doc(db, 'recordings', recordingId);
+    const docSnap = await getDoc(docRef);
+    const data = docSnap.data();
+    
+    // 1. Eliminar audio de Storage si existe
+    if (data?.audioUrl) {
+      try {
+        const audioRef = storageRef(storage, data.audioUrl);
+        await deleteObject(audioRef);
+        console.log('Audio deleted from Storage');
+      } catch (storageError) {
+        console.error('Error deleting audio:', storageError);
+        // Continuar aunque falle (el audio podría no existir)
+      }
+    }
+    
+    // 2. Eliminar documento de Firestore
+    await deleteDoc(docRef);
+    console.log(`Recording ${recordingId} permanently deleted`);
+  } catch (error) {
+    console.error('Error hard deleting recording:', error);
+    throw error;
+  }
+}
+
+/**
+ * Actualiza el estado de un action item
+ */
+export async function updateActionItemStatus(
+  recordingId: string,
+  actionIndex: number,
+  status: 'pending' | 'completed' | 'discarded',
+  reason?: string
+): Promise<void> {
+  try {
+    const docRef = doc(db, 'recordings', recordingId);
+    const docSnap = await getDoc(docRef);
+    const data = docSnap.data();
+    
+    if (!data?.analysis?.actionItems) {
+      throw new Error('No action items found');
+    }
+    
+    const actionItems = [...data.analysis.actionItems];
+    // Nota: serverTimestamp() no funciona dentro de arrays, usar Date.toISOString()
+    const timestamp = new Date().toISOString();
+    actionItems[actionIndex] = {
+      ...actionItems[actionIndex],
+      status,
+      ...(status === 'completed' && { completedAt: timestamp, executedBy: 'user' }),
+      ...(status === 'discarded' && { discardedReason: reason || 'Sin razón especificada', completedAt: timestamp }),
+      ...(status === 'pending' && { completedAt: null, discardedReason: null })
+    };
+    
+    await updateDoc(docRef, {
+      'analysis.actionItems': actionItems
+    });
+    
+    console.log(`Action item ${actionIndex} updated to ${status}`);
+  } catch (error) {
+    console.error('Error updating action item:', error);
     throw error;
   }
 }

@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { onRecordingsChange, saveRecording } from '@/lib/firebase';
+import Link from 'next/link';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
+import { onRecordingsChange, saveRecording, deleteRecording, recoverRecording, hardDeleteRecording, updateActionItemStatus } from '@/lib/firebase';
 import { RealtimeTranscription } from '@/lib/realtime-transcription';
 import { db, functions } from '@/lib/firebase';
-import { onSnapshot, query, orderBy, collection } from 'firebase/firestore';
+import { onSnapshot, query, orderBy, collection, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
 // Icon components
@@ -90,14 +93,7 @@ interface TranscriptSegment {
 export default function Home() {
   const [recordings, setRecordings] = useState<any[]>([]);
   const [selectedRecording, setSelectedRecording] = useState<any | null>(null);
-  
-  // #region agent log
-  useEffect(() => {
-    if (selectedRecording) {
-      fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:89',message:'selectedRecording changed',data:{id:selectedRecording.id,hasSummary:!!selectedRecording.summary,hasAnalysis:!!selectedRecording.analysis,hasAnalysisSummary:!!selectedRecording.analysis?.summary,summaryValue:selectedRecording.summary?.substring(0,50),analysisSummaryValue:selectedRecording.analysis?.summary?.substring(0,50),allKeys:Object.keys(selectedRecording)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C,D'})}).catch(()=>{});
-    }
-  }, [selectedRecording]);
-  // #endregion
+  const [deletedCount, setDeletedCount] = useState(0);
   const [activeNav, setActiveNav] = useState('home');
   const [activeTab, setActiveTab] = useState('transcription');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -121,6 +117,24 @@ export default function Home() {
   // Estado para reprocesamiento
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [reprocessResult, setReprocessResult] = useState<{total: number, processed: number, failed: number} | null>(null);
+  
+  // Estados para modal de confirmación de acciones
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<any>(null);
+  const [actionFeedback, setActionFeedback] = useState('');
+  const [isDraftReady, setIsDraftReady] = useState(false);
+  
+  // Estados para eliminación de grabaciones
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [recordingToDelete, setRecordingToDelete] = useState<any>(null);
+  const [deleteActions, setDeleteActions] = useState(false);
+  
+  // Estados para gestión de action items
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [actionToDiscard, setActionToDiscard] = useState<{recording: any, index: number} | null>(null);
+  const [discardReason, setDiscardReason] = useState('already_done');
+  const [discardNote, setDiscardNote] = useState('');
+  const [actionFilter, setActionFilter] = useState<'all' | 'pending' | 'completed' | 'discarded'>('pending');
   
   const transcriptionRef = useRef<RealtimeTranscription | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -152,26 +166,36 @@ export default function Home() {
   const finalTranscriptsRef = useRef<TranscriptSegment[]>([]);
 
   useEffect(() => {
-    // Real-time listener para grabaciones desde Firestore
-    const q = query(collection(db, 'recordings'), orderBy('createdAt', 'desc'));
+    // Real-time listener para grabaciones activas (no eliminadas) desde Firestore
+    const q = query(
+      collection(db, 'recordings'), 
+      where('deletedAt', '==', null),
+      orderBy('createdAt', 'desc')
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const recordingsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       }));
-      
-      // #region agent log
-      if (recordingsData.length > 0) {
-        const sample = recordingsData[0];
-        fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:153',message:'Recordings loaded from Firestore',data:{count:recordingsData.length,sampleId:sample.id,sampleKeys:Object.keys(sample),hasSummary:!!sample.summary,hasAnalysis:!!sample.analysis,hasAnalysisSummary:!!sample.analysis?.summary,status:sample.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,C,D'})}).catch(()=>{});
-      }
-      // #endregion
-      
       setRecordings(recordingsData);
       console.log('Loaded recordings:', recordingsData.length);
     }, (error) => {
       console.error('Error loading recordings:', error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Contar grabaciones eliminadas para el badge de papelera
+    const q = query(
+      collection(db, 'recordings'),
+      where('deletedAt', '!=', null)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setDeletedCount(snapshot.size);
     });
 
     return () => unsubscribe();
@@ -823,6 +847,7 @@ export default function Home() {
   ];
 
   return (
+    <ProtectedRoute>
     <main className="flex h-screen bg-black text-white font-['Inter',sans-serif]">
       {/* Left Sidebar - Icon Navigation */}
       <div className="w-16 bg-black border-r border-white/10 flex flex-col items-center py-4">
@@ -926,13 +951,8 @@ export default function Home() {
                           {session.chunks.map((chunk: any) => (
                             <div
                               key={chunk.id}
-                              className="p-2 rounded bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                              onClick={() => {
-                                // #region agent log
-                                fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:922',message:'Chunk clicked',data:{id:chunk.id,hasSummary:!!chunk.summary,hasAnalysis:!!chunk.analysis,hasAnalysisSummary:!!chunk.analysis?.summary,keys:Object.keys(chunk)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-                                // #endregion
-                                setSelectedRecording(chunk);
-                              }}
+                              className="relative group p-2 rounded bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                              onClick={() => setSelectedRecording(chunk)}
                             >
                               <div className="flex items-start justify-between mb-1">
                                 <div className="flex items-center gap-2">
@@ -941,9 +961,24 @@ export default function Home() {
                                     Chunk {chunk.chunkNumber}
                                   </span>
                                 </div>
-                                <span className="text-xs text-gray-600">
-                                  {chunk.duration ? `${Math.floor(chunk.duration / 60)}m` : ''}
-                                </span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-gray-600">
+                                    {chunk.duration ? `${Math.floor(chunk.duration / 60)}m` : ''}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRecordingToDelete(chunk);
+                                      setShowDeleteModal(true);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded"
+                                    title="Eliminar"
+                                  >
+                                    <svg className="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
                               </div>
                               
                               {chunk.chunkStartTime && (
@@ -973,21 +1008,31 @@ export default function Home() {
                     {standaloneRecordings.map((recording, idx) => (
                       <div 
                         key={recording.id} 
-                        className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                        onClick={() => {
-                          // #region agent log
-                          fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:964',message:'Recording clicked',data:{id:recording.id,hasSummary:!!recording.summary,hasAnalysis:!!recording.analysis,hasAnalysisSummary:!!recording.analysis?.summary,keys:Object.keys(recording),status:recording.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-                          // #endregion
-                          setSelectedRecording(recording);
-                        }}
+                        className="relative group p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={() => setSelectedRecording(recording)}
                       >
                         <div className="flex justify-between items-start mb-1">
                           <h3 className="text-sm font-medium truncate">
                             {recording.title || `Recording ${idx + 1}`}
                           </h3>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(recording.createdAt).split(' ')[1]}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">
+                              {formatDate(recording.createdAt).split(' ')[1]}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRecordingToDelete(recording);
+                                setShowDeleteModal(true);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-500/20 rounded"
+                              title="Eliminar grabación"
+                            >
+                              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         {recording.transcript?.text && (
                           <p className="text-xs text-gray-400 line-clamp-2">
@@ -1008,6 +1053,20 @@ export default function Home() {
               })()}
             </div>
           )}
+          
+          {/* Link a Papelera */}
+          <Link 
+            href="/papelera"
+            className="p-3 mt-2 flex items-center gap-2 text-gray-500 hover:text-white hover:bg-white/5 rounded transition-colors"
+          >
+            <span>📦</span>
+            <span className="flex-1 text-sm">Papelera</span>
+            {deletedCount > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">
+                {deletedCount}
+              </span>
+            )}
+          </Link>
         </div>
       </div>
       )}
@@ -1084,15 +1143,15 @@ export default function Home() {
                     <span className="text-gray-300 flex-1">Voice Activity Detection</span>
                     <span className="text-xs text-green-400">Completo</span>
                   </div>
-                  <a href="/analisis" className="flex items-center gap-3 p-2 hover:bg-white/5 rounded transition-colors cursor-pointer">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                  <Link href="/analisis" className="flex items-center gap-3 p-2 hover:bg-white/5 rounded transition-colors cursor-pointer">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
                     <span className="text-gray-300 flex-1 hover:text-white">Análisis con GPT-4o-mini</span>
-                    <span className="text-xs text-yellow-400">En pruebas →</span>
-                  </a>
+                    <span className="text-xs text-green-400">Operativo →</span>
+                  </Link>
                   <div className="flex items-center gap-3 p-2">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
                     <span className="text-gray-300 flex-1">Reprocessing masivo</span>
-                    <span className="text-xs text-yellow-400">En pruebas</span>
+                    <span className="text-xs text-green-400">Operativo</span>
                   </div>
                   <div className="flex items-center gap-3 p-2">
                     <span className="w-2 h-2 rounded-full bg-gray-500"></span>
@@ -1204,12 +1263,12 @@ export default function Home() {
                 >
                   {isReprocessing ? '⏳ Procesando...' : '🔄 Reprocess All'}
                 </button>
-                <a
+                <Link
                   href="/analisis"
                   className="px-4 py-2 bg-pink-500/20 text-pink-400 rounded-lg hover:bg-pink-500/30 transition-colors text-sm"
                 >
                   🧠 Análisis GPT-4o
-                </a>
+                </Link>
                 <a
                   href="https://console.firebase.google.com/project/always-f6dda/functions/logs"
                   target="_blank"
@@ -1476,17 +1535,309 @@ export default function Home() {
           {activeTab === 'summary' && (
             <div className="max-w-2xl">
               {selectedRecording ? (
-                <div>
+                <div className="space-y-6">
                   <h3 className="text-lg font-medium mb-4">Recording Summary</h3>
+                  
+                  {/* Summary */}
                   <div className="bg-white/5 rounded-lg p-4">
                     <p className="text-gray-300">
-                      {selectedRecording.summary || 'Summary will be generated automatically after transcription is complete.'}
+                      {selectedRecording.analysis?.summary || selectedRecording.summary || 'Summary will be generated automatically after transcription is complete.'}
                     </p>
                   </div>
                   
+                  {/* Análisis Detallado */}
+                  {selectedRecording.analysis && (
+                    <div className="space-y-4">
+                      {/* Participants */}
+                      {selectedRecording.analysis.participants && selectedRecording.analysis.participants.length > 0 && (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          <h4 className="font-medium text-gray-400 mb-2 text-sm">Participants</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedRecording.analysis.participants.map((participant: string, idx: number) => (
+                              <span key={idx} className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-sm">
+                                {participant}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Topics */}
+                      {selectedRecording.analysis.topics && selectedRecording.analysis.topics.length > 0 && (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          <h4 className="font-medium text-gray-400 mb-2 text-sm">Topics</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedRecording.analysis.topics.map((topic: string, idx: number) => (
+                              <span key={idx} className="px-3 py-1 rounded bg-blue-500/20 text-blue-400 text-sm">
+                                {topic}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Action Items */}
+                      {selectedRecording.analysis.actionItems && selectedRecording.analysis.actionItems.length > 0 && (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          {/* Filtros */}
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-400 text-sm">Action Items</h4>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => setActionFilter('pending')}
+                                className={`text-xs px-2 py-1 rounded transition-colors ${
+                                  actionFilter === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 'text-gray-500 hover:text-gray-300'
+                                }`}
+                              >
+                                Pendientes
+                              </button>
+                              <button
+                                onClick={() => setActionFilter('completed')}
+                                className={`text-xs px-2 py-1 rounded transition-colors ${
+                                  actionFilter === 'completed' ? 'bg-green-500/20 text-green-400' : 'text-gray-500 hover:text-gray-300'
+                                }`}
+                              >
+                                Completadas
+                              </button>
+                              <button
+                                onClick={() => setActionFilter('all')}
+                                className={`text-xs px-2 py-1 rounded transition-colors ${
+                                  actionFilter === 'all' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'
+                                }`}
+                              >
+                                Todas
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            {selectedRecording.analysis.actionItems
+                              .map((item: any, idx: number) => ({ item, idx }))
+                              .filter(({ item }: any) => {
+                                if (actionFilter === 'all') return true;
+                                if (actionFilter === 'pending') return !item.status || item.status === 'pending';
+                                if (actionFilter === 'completed') return item.status === 'completed';
+                                if (actionFilter === 'discarded') return item.status === 'discarded';
+                                return true;
+                              })
+                              .map(({ item, idx }: any) => {
+                              // Soporte para formato legacy (string) y nuevo (objeto)
+                              const isStructured = typeof item === 'object' && item.type;
+                              
+                              if (!isStructured) {
+                                // Formato legacy
+                                return (
+                                  <div key={idx} className="flex items-start gap-2 text-sm text-gray-300">
+                                    <span className="text-green-400">✓</span>
+                                    <span>{item}</span>
+                                  </div>
+                                );
+                              }
+                              
+                              // Formato estructurado
+                              const typeIcons: Record<string, string> = {
+                                email: '✉️',
+                                meeting: '📅',
+                                call: '📞',
+                                document: '📄',
+                                followup: '🔄',
+                                other: '📌'
+                              };
+                              
+                              const priorityColors: Record<string, string> = {
+                                high: 'bg-red-500/20 text-red-400 border-red-500/30',
+                                medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                                low: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                              };
+                              
+                              return (
+                                <div key={idx} className="bg-black/30 border border-white/10 rounded-lg p-3 hover:border-white/20 transition-colors">
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-2xl">{typeIcons[item.type] || '📌'}</span>
+                                    <div className="flex-1">
+                                      <div className="flex items-start justify-between gap-2 mb-1">
+                                        <p className="text-white font-medium text-sm">{item.description}</p>
+                                        {item.priority && (
+                                          <span className={`text-xs px-2 py-0.5 rounded border ${priorityColors[item.priority]}`}>
+                                            {item.priority === 'high' ? 'Urgente' : item.priority === 'medium' ? 'Normal' : 'Baja'}
+                                          </span>
+                                        )}
+                                      </div>
+                                      
+                                      <div className="flex flex-wrap gap-2 text-xs text-gray-400 mt-2">
+                                        {item.assignee && (
+                                          <span className="flex items-center gap-1">
+                                            <span className="text-purple-400">→</span>
+                                            {item.assignee}
+                                          </span>
+                                        )}
+                                        {item.deadline && (
+                                          <span className="flex items-center gap-1">
+                                            <span>📅</span>
+                                            {item.deadline}
+                                          </span>
+                                        )}
+                                      </div>
+                                      
+                                      {item.context && (
+                                        <p className="text-gray-500 text-xs mt-2">{item.context}</p>
+                                      )}
+                                      
+                                      {/* Quick Action Buttons */}
+                                      <div className="flex gap-2 mt-3">
+                                        {item.type === 'email' && (
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              window.location.href = `mailto:${item.assignee}?subject=Re: ${item.description}&body=Hola ${item.assignee},%0D%0A%0D%0A${item.context || ''}`;
+                                            }}
+                                            className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded text-xs hover:bg-blue-500/30 transition-colors font-medium flex items-center gap-1"
+                                          >
+                                            ✉️ Abrir Email
+                                          </button>
+                                        )}
+                                        
+                                        {item.type === 'meeting' && (
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const title = encodeURIComponent(item.description);
+                                              const details = encodeURIComponent(item.context || '');
+                                              window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}`, '_blank');
+                                            }}
+                                            className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded text-xs hover:bg-purple-500/30 transition-colors font-medium flex items-center gap-1"
+                                          >
+                                            📅 Crear Evento
+                                          </button>
+                                        )}
+                                        
+                                        {item.type === 'call' && item.assignee && (
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              alert(`Recordatorio: Llamar a ${item.assignee}\n\nTema: ${item.description}\n${item.context ? 'Contexto: ' + item.context : ''}`);
+                                            }}
+                                            className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30 transition-colors font-medium flex items-center gap-1"
+                                          >
+                                            📞 Recordar Llamada
+                                          </button>
+                                        )}
+                                        
+                                        <button 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigator.clipboard.writeText(`${item.description}\n${item.assignee ? 'Para: ' + item.assignee : ''}\n${item.deadline ? 'Fecha: ' + item.deadline : ''}\n${item.context || ''}`);
+                                            alert('✓ Acción copiada al portapapeles');
+                                          }}
+                                          className="px-3 py-1.5 bg-gray-500/20 text-gray-400 rounded text-xs hover:bg-gray-500/30 transition-colors font-medium flex items-center gap-1"
+                                        >
+                                          📋 Copiar
+                                        </button>
+                                      </div>
+                                      
+                                      {/* Estado y Botones de Gestión */}
+                                      <div className="mt-3 pt-3 border-t border-white/10">
+                                        {(!item.status || item.status === 'pending') && (
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={async (e) => {
+                                                e.stopPropagation();
+                                                try {
+                                                  await updateActionItemStatus(selectedRecording.id, idx, 'completed');
+                                                } catch (error) {
+                                                  console.error('Error marking as completed:', error);
+                                                  alert('Error al marcar como completada');
+                                                }
+                                              }}
+                                              className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30 transition-colors font-medium"
+                                            >
+                                              ✓ Marcar Completada
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActionToDiscard({recording: selectedRecording, index: idx});
+                                                setShowDiscardModal(true);
+                                              }}
+                                              className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30 transition-colors font-medium"
+                                            >
+                                              ✕ Descartar
+                                            </button>
+                                          </div>
+                                        )}
+                                        
+                                        {item.status === 'completed' && (
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-xs text-green-400">
+                                              <span>✅</span>
+                                              <span>Completada {item.completedAt ? 'el ' + new Date(item.completedAt.seconds * 1000).toLocaleDateString('es-ES') : ''}</span>
+                                            </div>
+                                            <button
+                                              onClick={async (e) => {
+                                                e.stopPropagation();
+                                                try {
+                                                  await updateActionItemStatus(selectedRecording.id, idx, 'pending');
+                                                } catch (error) {
+                                                  console.error('Error reopening:', error);
+                                                }
+                                              }}
+                                              className="px-2 py-1 bg-gray-500/20 text-gray-400 rounded text-xs hover:bg-gray-500/30 transition-colors"
+                                            >
+                                              ♻️ Reabrir
+                                            </button>
+                                          </div>
+                                        )}
+                                        
+                                        {item.status === 'discarded' && (
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-xs text-gray-500">
+                                              <span className="text-red-400">❌ Descartada:</span>
+                                              <span className="ml-1">{item.discardedReason || 'Sin razón'}</span>
+                                            </div>
+                                            <button
+                                              onClick={async (e) => {
+                                                e.stopPropagation();
+                                                try {
+                                                  await updateActionItemStatus(selectedRecording.id, idx, 'pending');
+                                                } catch (error) {
+                                                  console.error('Error reactivating:', error);
+                                                }
+                                              }}
+                                              className="px-2 py-1 bg-gray-500/20 text-gray-400 rounded text-xs hover:bg-gray-500/30 transition-colors"
+                                            >
+                                              ♻️ Reactivar
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Sentiment */}
+                      {selectedRecording.analysis.sentiment && (
+                        <div className="bg-white/5 rounded-lg p-4">
+                          <h4 className="font-medium text-gray-400 mb-2 text-sm">Sentiment</h4>
+                          <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
+                            selectedRecording.analysis.sentiment === 'positive' ? 'bg-green-500/20 text-green-400' :
+                            selectedRecording.analysis.sentiment === 'negative' ? 'bg-red-500/20 text-red-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {selectedRecording.analysis.sentiment.charAt(0).toUpperCase() + selectedRecording.analysis.sentiment.slice(1)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Audio Playback */}
                   {selectedRecording.audioUrl && (
-                    <div className="mt-6">
-                      <h4 className="font-medium text-gray-400 mb-3">Audio Playback</h4>
+                    <div className="bg-white/5 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-400 mb-3 text-sm">Audio Playback</h4>
                       <audio controls className="w-full">
                         <source src={selectedRecording.audioUrl} type="audio/webm" />
                         Your browser does not support the audio element.
@@ -1510,17 +1861,42 @@ export default function Home() {
         <div className="p-4 border-b border-white/10">
           <h3 className="text-sm font-medium text-gray-400 mb-3">SUMMARY</h3>
           {selectedRecording ? (
-            <>
-              {/* #region agent log */}
-              {(() => {
-                fetch('http://127.0.0.1:7243/ingest/f0b8473a-9b33-4004-a4ff-398d75d88cd0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:1190',message:'Rendering summary panel',data:{id:selectedRecording.id,summaryDirect:selectedRecording.summary?.substring(0,50) || 'NONE',summaryFromAnalysis:selectedRecording.analysis?.summary?.substring(0,50) || 'NONE',willShow:!!(selectedRecording.summary || selectedRecording.analysis?.summary)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-                return null;
-              })()}
-              {/* #endregion */}
+            <div className="space-y-3">
               <p className="text-sm text-gray-300">
-                {selectedRecording.summary || 'Analysis will appear here after transcription completes.'}
+                {selectedRecording.analysis?.summary || selectedRecording.summary || 'Analysis will appear here after transcription completes.'}
               </p>
-            </>
+              
+              {/* Mostrar detalles adicionales si existen */}
+              {selectedRecording.analysis && (
+                <div className="space-y-2 pt-2 border-t border-white/5">
+                  {selectedRecording.analysis.topics && selectedRecording.analysis.topics.length > 0 && (
+                    <div>
+                      <span className="text-xs text-gray-500">Topics:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedRecording.analysis.topics.slice(0, 3).map((topic: string, idx: number) => (
+                          <span key={idx} className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                            {topic}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedRecording.analysis.sentiment && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Sentiment:</span>
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        selectedRecording.analysis.sentiment === 'positive' ? 'bg-green-500/10 text-green-400' :
+                        selectedRecording.analysis.sentiment === 'negative' ? 'bg-red-500/10 text-red-400' :
+                        'bg-gray-500/10 text-gray-400'
+                      }`}>
+                        {selectedRecording.analysis.sentiment}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
             <p className="text-sm text-gray-500">Select a recording to view summary</p>
           )}
@@ -1641,6 +2017,189 @@ export default function Home() {
         </>
       )}
 
+      {/* Discard Action Modal */}
+      {showDiscardModal && actionToDiscard && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowDiscardModal(false)}>
+          <div className="bg-gray-900 border border-white/20 rounded-xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-white mb-4">¿Por qué descartas esta acción?</h3>
+            
+            <div className="bg-white/5 rounded-lg p-3 mb-4">
+              <p className="text-sm text-gray-300 font-medium mb-1">
+                {actionToDiscard.recording.analysis.actionItems[actionToDiscard.index].description}
+              </p>
+              <p className="text-xs text-gray-500">
+                {actionToDiscard.recording.analysis.actionItems[actionToDiscard.index].assignee && `Para: ${actionToDiscard.recording.analysis.actionItems[actionToDiscard.index].assignee}`}
+              </p>
+            </div>
+            
+            <div className="space-y-2 mb-4">
+              <label className="flex items-center gap-2 p-2 rounded hover:bg-white/5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="discard-reason"
+                  value="already_done"
+                  checked={discardReason === 'already_done'}
+                  onChange={(e) => setDiscardReason(e.target.value)}
+                  className="accent-blue-500"
+                />
+                <span className="text-sm text-gray-300">Ya la hice manualmente</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 rounded hover:bg-white/5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="discard-reason"
+                  value="not_applicable"
+                  checked={discardReason === 'not_applicable'}
+                  onChange={(e) => setDiscardReason(e.target.value)}
+                  className="accent-blue-500"
+                />
+                <span className="text-sm text-gray-300">No aplica</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 rounded hover:bg-white/5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="discard-reason"
+                  value="detection_error"
+                  checked={discardReason === 'detection_error'}
+                  onChange={(e) => setDiscardReason(e.target.value)}
+                  className="accent-blue-500"
+                />
+                <span className="text-sm text-gray-300">Error de detección</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 rounded hover:bg-white/5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="discard-reason"
+                  value="other"
+                  checked={discardReason === 'other'}
+                  onChange={(e) => setDiscardReason(e.target.value)}
+                  className="accent-blue-500"
+                />
+                <span className="text-sm text-gray-300">Otra razón</span>
+              </label>
+            </div>
+            
+            <textarea
+              value={discardNote}
+              onChange={(e) => setDiscardNote(e.target.value)}
+              placeholder="Nota opcional (ej: la hice por teléfono)"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-blue-500/50 mb-4"
+              rows={3}
+            />
+            
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  try {
+                    const reasonText = discardReason === 'already_done' ? 'Ya la hice manualmente' :
+                                      discardReason === 'not_applicable' ? 'No aplica' :
+                                      discardReason === 'detection_error' ? 'Error de detección' :
+                                      'Otra razón';
+                    const fullReason = discardNote ? `${reasonText}: ${discardNote}` : reasonText;
+                    
+                    await updateActionItemStatus(
+                      actionToDiscard.recording.id,
+                      actionToDiscard.index,
+                      'discarded',
+                      fullReason
+                    );
+                    
+                    setShowDiscardModal(false);
+                    setActionToDiscard(null);
+                    setDiscardNote('');
+                    setDiscardReason('already_done');
+                  } catch (error) {
+                    console.error('Error al descartar:', error);
+                    alert('Error al descartar la acción');
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors font-medium"
+              >
+                Confirmar
+              </button>
+              <button
+                onClick={() => {
+                  setShowDiscardModal(false);
+                  setActionToDiscard(null);
+                  setDiscardNote('');
+                }}
+                className="flex-1 px-4 py-2 bg-gray-500/20 text-gray-400 rounded-lg hover:bg-gray-500/30 transition-colors font-medium"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && recordingToDelete && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-gray-900 border border-white/20 rounded-xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-white mb-4">¿Eliminar esta grabación?</h3>
+            
+            <div className="bg-white/5 rounded-lg p-3 mb-4">
+              <p className="text-sm text-gray-300 mb-1">
+                {recordingToDelete.transcript?.text?.substring(0, 100) || recordingToDelete.id}...
+              </p>
+              <p className="text-xs text-gray-500">
+                {formatDate(recordingToDelete.createdAt)}
+              </p>
+            </div>
+            
+            {recordingToDelete.analysis?.actionItems && recordingToDelete.analysis.actionItems.length > 0 && (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-4">
+                <p className="text-yellow-300 font-medium text-sm mb-2">
+                  ⚠️ Esta grabación tiene {recordingToDelete.analysis.actionItems.length} acción(es) pendiente(s)
+                </p>
+                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={deleteActions}
+                    onChange={(e) => setDeleteActions(e.target.checked)}
+                    className="accent-red-500"
+                  />
+                  <span>Borrar también las acciones pendientes</span>
+                </label>
+                <p className="text-xs text-gray-500 mt-1 ml-6">
+                  {deleteActions ? 'Las acciones se eliminarán junto con la grabación' : 'Las acciones se mantendrán activas'}
+                </p>
+              </div>
+            )}
+            
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteRecording(recordingToDelete.id, deleteActions);
+                    console.log('Grabación eliminada exitosamente');
+                  } catch (error) {
+                    console.error('Error al eliminar:', error);
+                    alert('Error al eliminar la grabación');
+                  }
+                  setShowDeleteModal(false);
+                  setRecordingToDelete(null);
+                  setDeleteActions(false);
+                }}
+                className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors font-medium"
+              >
+                🗑️ Eliminar
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setRecordingToDelete(null);
+                  setDeleteActions(false);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-500/20 text-gray-400 rounded-lg hover:bg-gray-500/30 transition-colors font-medium"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chat Button */}
       <button
         onClick={() => setIsChatOpen(!isChatOpen)}
@@ -1687,5 +2246,6 @@ export default function Home() {
         </div>
       )}
     </main>
+    </ProtectedRoute>
   );
 }
