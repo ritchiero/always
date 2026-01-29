@@ -11,6 +11,7 @@ import { db, functions } from '@/lib/firebase';
 import { onSnapshot, query, orderBy, collection, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { ActionConfirmationModal } from '@/components/ActionConfirmationModal';
+import { RecordingControl } from '@/components/RecordingControl';
 
 // Icon components
 const HomeIcon = () => (
@@ -856,36 +857,16 @@ export default function Home() {
     <main className="flex h-screen bg-black text-white font-['Inter',sans-serif]">
       {/* Left Sidebar - Icon Navigation */}
       <div className="w-16 bg-black border-r border-white/10 flex flex-col items-center py-4">
-        {/* Recording Indicator */}
-        <div className="mb-6">
-          <button
-            onClick={(isRecording || isListening) ? stopRecording : startRecording}
-            disabled={isProcessing}
-            className="relative w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors disabled:opacity-50"
-            title={isRecording ? 'Recording' : isListening ? 'Listening...' : 'Ready'}
-          >
-            {/* Indicador de estado */}
-            <div className={`w-3 h-3 rounded-full ${
-              isRecording ? 'bg-red-500 animate-pulse' : 
-              isListening ? 'bg-yellow-500' :
-              isProcessing ? 'bg-yellow-500 animate-spin' : 
-              'bg-gray-500'
-            }`} />
-            
-            {/* Animación de pulso para Recording */}
-            {isRecording && (
-              <div className="absolute inset-0 rounded-full border-2 border-red-500/50 animate-ping" />
-            )}
-            
-            {/* Ondas de sonido animadas para Listening */}
-            {isListening && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="absolute w-4 h-4 rounded-full border border-yellow-500/50 animate-ping" />
-                <div className="absolute w-5 h-5 rounded-full border border-yellow-500/30 animate-ping" style={{ animationDelay: '0.3s' }} />
-              </div>
-            )}
-          </button>
-        </div>
+        {/* Recording Control - Desktop */}
+        <RecordingControl
+          isRecording={isRecording}
+          isListening={isListening}
+          isProcessing={isProcessing}
+          recordingTime={recordingTime}
+          onStart={startRecording}
+          onStop={stopRecording}
+          isMobile={false}
+        />
 
         {/* Nav Items */}
         <nav className="flex-1 flex flex-col gap-2">
@@ -2274,6 +2255,17 @@ export default function Home() {
           }}
         />
       )}
+
+      {/* Recording Control - Mobile Floating Button */}
+      <RecordingControl
+        isRecording={isRecording}
+        isListening={isListening}
+        isProcessing={isProcessing}
+        recordingTime={recordingTime}
+        onStart={startRecording}
+        onStop={stopRecording}
+        isMobile={true}
+      />
     </main>
     </ProtectedRoute>
   );
