@@ -11,8 +11,28 @@
   --header-height: 64px;
 }
 
+/* Hide mobile components on desktop by default */
+.mobile-header,
+.mobile-sidebar,
+.mobile-overlay {
+  display: none;
+}
+
+.mobile-main-content {
+  padding-top: 0;
+}
+
 /* Mobile-first Header */
 @media (max-width: 768px) {
+  /* Show mobile components */
+  .mobile-header {
+    display: flex;
+  }
+  
+  .mobile-sidebar,
+  .mobile-overlay {
+    display: block;
+  }
   /* Force hide desktop layout on mobile */
   main.flex.h-screen > div:first-child,
   main.flex.h-screen > div:nth-child(2) {
@@ -120,15 +140,11 @@
   }
 }
 
-/* Desktop: keep original layout */
+/* Desktop: keep original layout (mobile components already hidden by default) */
 @media (min-width: 769px) {
-  .mobile-header,
-  .mobile-sidebar,
-  .mobile-overlay {
-    display: none;
-  }
-
-  .mobile-main-content {
-    padding-top: 0;
+  /* Desktop sidebars stay visible as normal */
+  main.flex.h-screen > div:first-child,
+  main.flex.h-screen > div:nth-child(2) {
+    display: flex !important;
   }
 }
