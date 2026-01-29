@@ -571,22 +571,32 @@ export default function Home() {
     try {
       setIsReprocessing(true);
       setReprocessResult(null);
-      setError(null); // Limpiar error previo
-      console.log('Iniciando reprocesamiento de grabaciones...');
+      setError(null);
+      console.log('Iniciando reprocesamiento COMPLETO de grabaciones...');
 
-      const reprocessFn = httpsCallable(functions, 'reprocessUnanalyzedRecordings');
-      const result = await reprocessFn();
+      const reprocessFn = httpsCallable(functions, 'reprocessAllUserRecordings');
+      const result = await reprocessFn({ 
+        forceAll: true,  // Reprocesar TODAS, no solo las sin análisis
+        limit: 100       // Procesar hasta 100 grabaciones
+      });
 
-      const data = result.data as { total: number; processed: number; failed: number };
+      const data = result.data as { 
+        total: number; 
+        processed: number; 
+        failed: number;
+        skipped: number;
+        message: string;
+      };
+      
       setReprocessResult(data);
       console.log('Reprocesamiento completado:', data);
       
       // Mostrar mensaje de éxito
       if (data.total === 0) {
-        setError('No hay grabaciones pendientes de procesar');
+        setError('No hay grabaciones para procesar');
       } else if (data.processed > 0) {
-        // No es realmente un error, pero usamos el campo para mostrar info
-        setTimeout(() => setError(null), 5000); // Limpiar después de 5 segundos
+        setError(`✅ ${data.message}`);
+        setTimeout(() => setError(null), 8000); // Limpiar después de 8 segundos
       }
     } catch (err: any) {
       console.error('Error reprocesando grabaciones:', err);
@@ -1384,10 +1394,15 @@ export default function Home() {
               </div>
               {reprocessResult && (
                 <div className={`mt-3 p-3 rounded-lg text-sm ${
-                  reprocessResult.failed === 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                  reprocessResult.failed === 0 ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
                 }`}>
-                  Último reprocess: {reprocessResult.processed}/{reprocessResult.total} procesados
-                  {reprocessResult.failed > 0 && ` (${reprocessResult.failed} fallidos)`}
+                  <div className="font-medium mb-1">✅ Reprocesamiento completado</div>
+                  <div className="text-xs space-y-1">
+                    <div>Total: {reprocessResult.total} grabaciones</div>
+                    <div>✓ Procesadas: {reprocessResult.processed}</div>
+                    {(reprocessResult as any).skipped > 0 && <div>⏭️ Saltadas: {(reprocessResult as any).skipped} (sin transcripción)</div>}
+                    {reprocessResult.failed > 0 && <div>❌ Fallidas: {reprocessResult.failed}</div>}
+                  </div>
                 </div>
               )}
             </div>
