@@ -936,3 +936,100 @@ export { reprocessAllUserRecordings };
 
 // ==================== Security & Migration ====================
 export { migrateRecordingsToUser, verifyMigrationStatus } from './migrate-recordings';
+
+// ==================== LaraHQ Sync ====================
+
+// Lazy init LaraHQ Firebase app
+let laraHqApp: admin.app.App | null = null;
+let laraHqDb: admin.firestore.Firestore | null = null;
+
+function getLaraHqDb(): admin.firestore.Firestore {
+  if (!laraHqDb) {
+    try {
+      // Initialize LaraHQ app with service account
+      const serviceAccount = require('../larahq-service-account.json');
+
+      laraHqApp = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: 'larahq-8ea30',
+      }, 'larahq');
+
+      laraHqDb = laraHqApp.firestore();
+      console.log('[LaraHQ] Firebase app initialized successfully');
+    } catch (error) {
+      console.error('[LaraHQ] Failed to initialize:', error);
+      throw new Error('LaraHQ service account not configured');
+    }
+  }
+  return laraHqDb;
+}
+
+/**
+ * Sync transcriptions to LaraHQ Firestore
+ * Triggered when a new document is created in the "transcriptions" collection
+ */
+export const syncTranscriptionToLaraHQ = functions
+  .region('us-central1')
+  .runWith({
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .firestore
+  .document('transcriptions/{transcriptionId}')
+  .onCreate(async (snapshot, context) => {
+    const transcriptionId = context.params.transcriptionId;
+    const data = snapshot.data();
+
+    console.log(`[LaraHQ] Syncing transcription ${transcriptionId} to LaraHQ...`);
+
+    try {
+      const laraDb = getLaraHqDb();
+
+      // Prepare document for LaraHQ inbox
+      const inboxDocument = {
+        type: 'transcription',
+        source: 'always',
+        sourceId: transcriptionId,
+        text: data.text || data.transcript?.text || data.transcript || '',
+        duration: data.duration || null,
+        createdAt: data.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+        processedByLara: false,
+        // Additional metadata
+        syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+        originalData: {
+          userId: data.userId || null,
+          sessionId: data.sessionId || null,
+        }
+      };
+
+      // Write to LaraHQ inbox collection
+      const docRef = await laraDb.collection('inbox').add(inboxDocument);
+
+      console.log(`[LaraHQ] Transcription ${transcriptionId} synced to LaraHQ inbox as ${docRef.id}`);
+
+      // Update original document to mark as synced
+      await snapshot.ref.update({
+        laraHqSync: {
+          synced: true,
+          syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+          laraHqDocId: docRef.id,
+        }
+      });
+
+      return { success: true, laraHqDocId: docRef.id };
+
+    } catch (error) {
+      console.error(`[LaraHQ] Error syncing transcription ${transcriptionId}:`, error);
+
+      // Mark as failed in original document
+      await snapshot.ref.update({
+        laraHqSync: {
+          synced: false,
+          error: error instanceof Error ? error.message : String(error),
+          lastAttempt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      });
+
+      return { success: false, error: String(error) };
+    }
+  });
