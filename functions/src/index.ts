@@ -980,6 +980,17 @@ export const syncTranscriptionToLaraHQ = functions
     const transcriptionId = context.params.transcriptionId;
     const data = snapshot.data();
 
+        // FILTRO DE SEGURIDAD: Solo sincronizar transcripciones de ricardo.rodriguez@getlawgic.com
+            // El userId autorizado es el único que puede sincronizar con LaraHQ
+                const AUTHORIZED_USER_ID = 'oP9ZzurAiEgnE'; // ricardo.rodriguez@getlawgic.com (primeros caracteres del UID)
+                    const userId = data.userId || data.uid || '';
+                        
+                            // Verificar si el userId comienza con el ID autorizado
+                                if (!userId || !userId.startsWith(AUTHORIZED_USER_ID.substring(0, 10))) {
+                                      console.log(`[LaraHQ] Skipping sync for unauthorized user: ${userId ? userId.substring(0, 10) + '...' : 'unknown'}`);
+                                            return { success: false, reason: 'unauthorized_user' };
+                                                }
+
     console.log(`[LaraHQ] Syncing transcription ${transcriptionId} to LaraHQ...`);
 
     try {
