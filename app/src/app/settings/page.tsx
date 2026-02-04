@@ -155,6 +155,16 @@ function SettingsContent() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
+  // Migration states
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<{
+    success: boolean;
+    migrated?: number;
+    skipped?: number;
+    message?: string;
+    error?: string;
+  } | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -265,6 +275,45 @@ function SettingsContent() {
       setError('Error al sincronizar calendario');
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  // Migration handler
+  const handleMigration = async () => {
+    if (!currentUser) return;
+
+    if (!confirm('¿Migrar grabaciones a la nueva estructura? Esto copiará tus grabaciones existentes a /users/{userId}/recordings.')) {
+      return;
+    }
+
+    try {
+      setIsMigrating(true);
+      setMigrationResult(null);
+      setError('');
+
+      const migrateFn = httpsCallable(functions, 'migrateRecordingsToUser');
+      const result = await migrateFn({});
+      const data = result.data as {
+        success: boolean;
+        migrated?: number;
+        skipped?: number;
+        message?: string;
+      };
+
+      setMigrationResult(data);
+      if (data.success) {
+        setSuccess(`✓ ${data.message || 'Migración completada'}`);
+        setTimeout(() => setSuccess(''), 5000);
+      }
+    } catch (error: any) {
+      console.error('Error migrating:', error);
+      setMigrationResult({
+        success: false,
+        error: error.message || 'Error en la migración',
+      });
+      setError('Error al migrar grabaciones');
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -463,6 +512,57 @@ function SettingsContent() {
             >
               Solicitar integración
             </a>
+          </div>
+
+          {/* Developer Tools Section */}
+          <div className="mt-8 bg-gray-900/50 border border-gray-700 rounded-lg p-6">
+            <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+              <span>🛠️</span> Developer Tools
+            </h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Herramientas de desarrollo y migración de datos.
+            </p>
+
+            {/* Migration Tool */}
+            <div className="bg-black/30 border border-gray-700 rounded-lg p-4">
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <span>📦</span> Migración de Datos
+              </h4>
+              <p className="text-xs text-gray-400 mb-3">
+                Migra grabaciones de la estructura legacy (/recordings) a la nueva estructura user-scoped (/users/userId/recordings).
+              </p>
+
+              {migrationResult && (
+                <div className={`mb-3 p-3 rounded-lg text-sm ${
+                  migrationResult.success
+                    ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                    : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                }`}>
+                  {migrationResult.success ? (
+                    <>
+                      <p className="font-medium">✓ Migración exitosa</p>
+                      <p className="text-xs mt-1">
+                        {migrationResult.migrated} grabaciones migradas
+                        {migrationResult.skipped ? `, ${migrationResult.skipped} omitidas` : ''}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium">✗ Error en migración</p>
+                      <p className="text-xs mt-1">{migrationResult.error}</p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={handleMigration}
+                disabled={isMigrating}
+                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              >
+                {isMigrating ? '⏳ Migrando...' : '🚀 Ejecutar Migración'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -2,12 +2,14 @@
 
 import { useState, useRef } from 'react';
 import { uploadAudio } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AudioRecorderProps {
   onRecordingComplete?: (audioUrl: string) => void;
 }
 
 export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
+  const { user } = useAuth();
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -55,7 +57,10 @@ export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProp
         console.log('Audio blob created, size:', audioBlob.size);
         
         try {
-          const audioUrl = await uploadAudio(audioBlob);
+          if (!user) {
+            throw new Error('User not authenticated');
+          }
+          const audioUrl = await uploadAudio(audioBlob, user.uid);
           console.log('Audio uploaded successfully:', audioUrl);
           onRecordingComplete?.(audioUrl);
         } catch (uploadError) {
