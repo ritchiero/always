@@ -307,7 +307,7 @@ export const getDeepgramKey = functions
                             throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
                     }
 
-                    const apiKey = process.env.DEEPGRAM_API_KEY;
+                    const apiKey = process.env.DEEPGRAM_API_KEY?.trim();
         if (!apiKey) {
                 throw new functions.https.HttpsError('failed-precondition', 'Deepgram API key not configured');
         }
