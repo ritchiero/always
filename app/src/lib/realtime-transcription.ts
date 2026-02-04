@@ -17,7 +17,7 @@ export class RealtimeTranscription {
       console.log('Getting Deepgram API key...');
       const getKey = httpsCallable(functions, 'getDeepgramKey');
       const result = await getKey();
-      const apiKey = (result.data as { apiKey: string }).apiKey;
+      const apiKey = (result.data as { apiKey: string }).apiKey.trim();
 
       if (!apiKey || apiKey === 'YOUR_DEEPGRAM_API_KEY_HERE') {
         throw new Error('Deepgram API key not configured');
