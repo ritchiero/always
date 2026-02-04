@@ -8,14 +8,20 @@ import { AssemblyAI } from 'assemblyai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import OpenAI from 'openai';
 import {
-  exchangeCodeForTokens,
-  syncUserCalendar,
-  syncAllActiveCalendars,
-  correlateEventsWithRecordings
+    exchangeCodeForTokens,
+    syncUserCalendar,
+    syncAllActiveCalendars,
+    correlateEventsWithRecordings
 } from './calendar-helpers';
 import { generateDailySummary } from './daily-summary';
 import { indexAllRecordings, indexRecording } from './indexing';
 import { reprocessAllUserRecordings } from './reprocess-all';
+import {
+    generateEmailDraft,
+    generateCalendarEventDraft,
+    generateGenericActionDraft,
+    regenerateDraftWithFeedback,
+} from './action-helpers';
 
 admin.initializeApp();
 
@@ -28,1019 +34,779 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const assemblyai = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY! });
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
 
-// OpenAI client - lazy initialization porque usa Firebase Secret
+// OpenAI client - lazy initialization
 let openaiClient: OpenAI | null = null;
+
 function getOpenAI(): OpenAI {
-  // #region agent log
-  console.log('[DEBUG-HYPC] getOpenAI called:', JSON.stringify({hasClient:!!openaiClient,envKeys:Object.keys(process.env).length,envVarsList:Object.keys(process.env).slice(0,20)}));
-  // #endregion
-  
-  if (!openaiClient) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    
-    // #region agent log
-    console.log('[DEBUG-HYPABE] API key details:', JSON.stringify({hasKey:!!apiKey,keyType:typeof apiKey,keyLength:apiKey?.length || 0,keyFirstChars:apiKey?.substring(0,15) || 'EMPTY',keyLastChars:apiKey?.substring(apiKey.length-8) || 'EMPTY',containsNewline:apiKey?.includes('\n'),containsSpace:apiKey?.includes(' '),trimmedLength:apiKey?.trim().length || 0}));
-    // #endregion
-    
-    if (!apiKey) {
-      // #region agent log
-      console.log('[DEBUG-HYPBE] API key is EMPTY, all env vars:', JSON.stringify(Object.keys(process.env)));
-      // #endregion
-      throw new Error('OPENAI_API_KEY not configured');
+    if (!openaiClient) {
+          const apiKey = process.env.OPENAI_API_KEY;
+          if (!apiKey) {
+                  throw new Error('OPENAI_API_KEY not configured');
+          }
+          const cleanedApiKey = apiKey.trim();
+          openaiClient = new OpenAI({ apiKey: cleanedApiKey });
     }
-    
-    // Trim whitespace/newlines from API key
-    const cleanedApiKey = apiKey.trim();
-    
-    // #region agent log
-    console.log('[DEBUG-HYPABE] After trim:', JSON.stringify({originalLength:apiKey.length,cleanedLength:cleanedApiKey.length,different:apiKey !== cleanedApiKey}));
-    // #endregion
-    
-    openaiClient = new OpenAI({ apiKey: cleanedApiKey });
-    console.log('OpenAI client initialized with key:', cleanedApiKey.substring(0, 10) + '...');
-    
-    // #region agent log
-    console.log('[DEBUG-HYPC] OpenAI client created successfully');
-    // #endregion
-  }
-  return openaiClient;
+    return openaiClient;
 }
 
-// Procesar audio cuando se sube a Storage
+// ===========================================
+// HELPER: Verificar ownership de recording
+// ===========================================
+async function verifyRecordingOwnership(
+    userId: string, 
+    recordingId: string
+  ): Promise<FirebaseFirestore.DocumentSnapshot> {
+    const doc = await getDb()
+      .collection('users').doc(userId)
+      .collection('recordings').doc(recordingId)
+      .get();
+
+  if (!doc.exists) {
+        throw new functions.https.HttpsError('not-found', 'Grabación no encontrada o no tienes acceso');
+  }
+
+  return doc;
+}
+
+// ===========================================
+// AUDIO PROCESSING (Storage Trigger)
+// ===========================================
+
+/**
+ * Procesa audio cuando se sube a Storage
+ * Formato esperado: audio/{userId}/{filename}
+ */
 export const processAudio = functions.storage
   .object()
   .onFinalize(async (object) => {
-    if (!object.name?.startsWith('audio/')) return;
-    
-    const bucket = storage.bucket(object.bucket);
-    const file = bucket.file(object.name);
-    const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 3600000 });
-    
-    // Transcribir con AssemblyAI (incluye diarization)
-    const transcript = await assemblyai.transcripts.transcribe({
-      audio_url: url,
-      speaker_labels: true,
-      language_code: 'es',
-    });
-    
-    // Guardar en Firestore
-    const docRef = await getDb().collection('recordings').add({
-      audioPath: object.name,
-      transcript: transcript.text,
-      utterances: transcript.utterances,
-      duration: transcript.audio_duration,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      status: 'transcribed',
-    });
-    
-    // Generar embeddings y guardar en Pinecone
-    const embedding = await getOpenAI().embeddings.create({
-      model: 'text-embedding-3-small',
-      input: transcript.text || '',
-    });
-    
-    const index = pinecone.index('always-transcripts');
-    await index.upsert([{
-      id: docRef.id,
-      values: embedding.data[0].embedding,
-      metadata: { text: transcript.text?.substring(0, 1000) || '' },
-    }]);
-    
-    return { success: true, recordingId: docRef.id };
+        if (!object.name?.startsWith('audio/')) return;
+
+                  // Extraer userId del path: audio/{userId}/{filename}
+                  const pathParts = object.name.split('/');
+        if (pathParts.length < 3) {
+                console.error('Invalid audio path format. Expected: audio/{userId}/{filename}');
+                return { success: false, reason: 'invalid_path' };
+        }
+        const userId = pathParts[1];
+
+                  const bucket = storage.bucket(object.bucket);
+        const file = bucket.file(object.name);
+        const [url] = await file.getSignedUrl({
+                action: 'read',
+                expires: Date.now() + 3600000
+        });
+
+                  // Transcribir con AssemblyAI
+                  const transcript = await assemblyai.transcripts.transcribe({
+                          audio_url: url,
+                          speaker_labels: true,
+                          language_code: 'es',
+                  });
+
+                  // Guardar en Firestore bajo el usuario (user-scoped)
+                  const docRef = await getDb()
+          .collection('users').doc(userId)
+          .collection('recordings')
+          .add({
+                    userId,
+                    audioPath: object.name,
+                    transcript: transcript.text,
+                    utterances: transcript.utterances,
+                    duration: transcript.audio_duration,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    status: 'transcribed',
+          });
+
+                  // Generar embeddings y guardar en Pinecone
+                  const embedding = await getOpenAI().embeddings.create({
+                          model: 'text-embedding-3-small',
+                          input: transcript.text || '',
+                  });
+
+                  const index = pinecone.index('always-transcripts');
+        await index.upsert([{
+                id: docRef.id,
+                values: embedding.data[0].embedding,
+                metadata: { 
+                  text: transcript.text?.substring(0, 1000) || '',
+                          userId,
+                },
+        }]);
+
+                  return { success: true, recordingId: docRef.id };
   });
 
-// Generar resumen con Claude
+// ===========================================
+// GENERATE SUMMARY (Callable)
+// ===========================================
+
 export const generateSummary = functions.https.onCall(async (data, context) => {
-  const { recordingId } = data;
-  const doc = await getDb().collection('recordings').doc(recordingId).get();
-  const recording = doc.data();
-  
-  const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1024,
-    messages: [{
-      role: 'user',
-      content: `Analiza esta transcripción de una reunión y genera:
-1. Resumen ejecutivo (2-3 oraciones)
-2. Puntos clave discutidos
-3. Tareas/action items detectados
-4. Insights (objeciones, señales de compra, etc.)
-
-Transcripción:
-${recording?.transcript}
-
-Responde en JSON con esta estructura:
-{ "summary": "", "keyPoints": [], "actionItems": [], "insights": [] }`
-    }],
-  });
-  
-  const analysis = JSON.parse(message.content[0].type === 'text' ? message.content[0].text : '{}');
-  
-  await getDb().collection('recordings').doc(recordingId).update({
-    summary: analysis.summary,
-    keyPoints: analysis.keyPoints,
-    actionItems: analysis.actionItems,
-    insights: analysis.insights,
-    status: 'analyzed',
-  });
-  
-  return analysis;
-});
-
-// Buscar en transcripciones con Pinecone
-export const searchTranscripts = functions
-  .runWith({
-    secrets: ['OPENAI_API_KEY', 'PINECONE_API_KEY'],
-    timeoutSeconds: 30,
-  })
-  .https.onCall(async (data, context) => {
-    // Authentication check
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'User must be authenticated to search'
-      );
-    }
-
+    // Auth check
+                                                        if (!context.auth) {
+                                                              throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+                                                        }
     const userId = context.auth.uid;
-    const { query } = data;
 
-    if (!query || typeof query !== 'string' || query.trim().length === 0) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'Query must be a non-empty string'
-      );
+                                                        const { recordingId } = data;
+    if (!recordingId) {
+          throw new functions.https.HttpsError('invalid-argument', 'recordingId es requerido');
     }
 
-    console.log(`[searchTranscripts] User ${userId} searching for: "${query}"`);
+                                                        // Ownership check
+                                                        const doc = await verifyRecordingOwnership(userId, recordingId);
+    const recording = doc.data();
 
-    try {
-      // 1. Generate embedding for the query
-      const openai = getOpenAI();
-      const embedding = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: query.trim(),
+                                                        const message = await anthropic.messages.create({
+                                                              model: 'claude-sonnet-4-20250514',
+                                                              max_tokens: 1024,
+                                                              messages: [{
+                                                                      role: 'user',
+                                                                      content: `Analiza esta transcripción de una reunión y genera:
+                                                                      1. Resumen ejecutivo (2-3 oraciones)
+                                                                      2. Puntos clave discutidos
+                                                                      3. Tareas/action items detectados
+                                                                      4. Insights (objeciones, señales de compra, etc.)
+
+                                                                      Transcripción:
+                                                                      ${recording?.transcript}
+
+                                                                      Responde en JSON con esta estructura:
+                                                                      {
+                                                                        "summary": "",
+                                                                          "keyPoints": [],
+                                                                            "actionItems": [],
+                                                                              "insights": []
+                                                                              }`
+                                                              }],
+                                                        });
+
+                                                        const analysis = JSON.parse(
+                                                              message.content[0].type === 'text' ? message.content[0].text : '{}'
+                                                            );
+
+                                                        // Actualizar en ruta user-scoped
+                                                        await getDb()
+      .collection('users').doc(userId)
+      .collection('recordings').doc(recordingId)
+      .update({
+              summary: analysis.summary,
+              keyPoints: analysis.keyPoints,
+              actionItems: analysis.actionItems,
+              insights: analysis.insights,
+              status: 'analyzed',
       });
 
-      console.log('[searchTranscripts] Generated embedding');
-
-      // 2. Query Pinecone with user filter
-      const index = pinecone.index('always-transcripts');
-      const queryResponse = await index.query({
-        vector: embedding.data[0].embedding,
-        topK: 10,
-        includeMetadata: true,
-        filter: {
-          userId: userId, // Only search this user's recordings
-        },
-      });
-
-      console.log(`[searchTranscripts] Found ${queryResponse.matches?.length || 0} results`);
-
-      // 3. Return results
-      if (!queryResponse.matches || queryResponse.matches.length === 0) {
-        return [];
-      }
-
-      return queryResponse.matches.map((match: any) => ({
-        id: match.id,
-        score: match.score,
-        metadata: match.metadata || {},
-      }));
-    } catch (error: any) {
-      console.error('[searchTranscripts] Error:', error);
-
-      // Check if it's a Pinecone index issue
-      if (error.message?.includes('Index') || error.message?.includes('not found')) {
-        throw new functions.https.HttpsError(
-          'failed-precondition',
-          'Search index not ready. Please wait a few minutes and try again.'
-        );
-      }
-
-      // Check if it's an OpenAI issue
-      if (error.message?.includes('openai') || error.message?.includes('embedding')) {
-        throw new functions.https.HttpsError(
-          'internal',
-          'Failed to process search query. Please try again.'
-        );
-      }
-
-      // Generic error
-      throw new functions.https.HttpsError(
-        'internal',
-        `Search failed: ${error.message || 'Unknown error'}`
-      );
-    }
-  });
-
-// Chat con contexto
-export const chat = functions.https.onCall(async (data, context) => {
-  const { message, recordingId } = data;
-  
-  let contextText = '';
-  if (recordingId) {
-    const doc = await getDb().collection('recordings').doc(recordingId).get();
-    contextText = doc.data()?.transcript || '';
-  }
-  
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1024,
-    system: `Eres un asistente que ayuda a analizar grabaciones y reuniones. 
-Tienes acceso al contexto de las transcripciones del usuario.
-Responde de forma concisa y útil en español.`,
-    messages: [{
-      role: 'user',
-      content: contextText 
-        ? `Contexto de la grabación:\n${contextText}\n\nPregunta: ${message}`
-        : message
-    }],
-  });
-  
-  return response.content[0].type === 'text' ? response.content[0].text : '';
+                                                        return analysis;
 });
 
-// Obtener API key de Deepgram para el cliente
-export const getDeepgramKey = functions.https.onCall(async (data, context) => {
-  const apiKey = process.env.DEEPGRAM_API_KEY;
+// ===========================================
+// SEARCH TRANSCRIPTS (Callable)
+// ===========================================
 
-  console.log('=== getDeepgramKey called ===');
-
-  if (!apiKey) {
-    throw new functions.https.HttpsError('failed-precondition', 'Deepgram API key not configured');
-  }
-
-  return { apiKey };
-});
-
-// ========== PROCESAMIENTO AUTOMÁTICO DE CHUNKS ==========
-
-/**
- * Procesa un recording cuando se crea en Firestore
- * Usa GPT-4o-mini para extraer: resumen, participantes, action items, temas
- */
-export const processRecording = functions
-  .runWith({
-    secrets: ['OPENAI_API_KEY', 'PINECONE_API_KEY'],
-    timeoutSeconds: 60,
-  })
-  .firestore
-  .document('recordings/{recordingId}')
-  .onCreate(async (snapshot, context) => {
-    const recordingId = context.params.recordingId;
-    const data = snapshot.data();
-
-    console.log(`Processing recording ${recordingId}...`);
-
-    // Solo procesar si tiene transcripción
-    const transcript = data.transcript?.text || data.transcript;
-    if (!transcript || transcript === '(sin transcripción)') {
-      console.log('No transcript to process, skipping');
-      return { success: false, reason: 'no_transcript' };
-    }
-
-    try {
-      // Usar GPT-4o-mini para análisis (barato y rápido)
-      const completion = await getOpenAI().chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Eres un asistente que analiza transcripciones de conversaciones/reuniones.
-Extrae información estructurada de la transcripción proporcionada.
-Responde SOLO con JSON válido, sin markdown ni explicaciones.`
-          },
-          {
-            role: 'user',
-            content: `Analiza esta transcripción y extrae:
-
-1. title: Título descriptivo corto (máx 60 caracteres) que capture el tema principal
-   - Ejemplos: "Reunión con Carlos - Presupuesto Q1", "Lluvia de ideas - Nueva feature", "Finanzas personales - Enero"
-   - Si identificas nombres de personas, INCLÚYELOS en el título
-   - Si no tiene contenido útil: "Recording sin contenido"
-
-2. summary: Resumen breve (1-2 oraciones)
-
-3. participants: IMPORTANTE - Lista de NOMBRES de personas mencionadas en la conversación
-   - Busca nombres propios mencionados directamente (ej: "Rodrigo", "Juan Pérez", "María")
-   - Incluye vocativos (cuando alguien llama a otra persona: "Estimado, Rodrigo...", "Gracias, Carlos")
-   - Incluye despedidas con nombres ("Adiós Rodrigo", "Fuerte abrazo, María")
-   - Incluye referencias directas ("Juan Pérez dijo...", "como mencionó Rodrigo...")
-   - SIEMPRE extrae nombres si hay alguno mencionado, no importa cuántas veces
-   - Si NO hay nombres mencionados, deja la lista vacía []
-   - NO inventes nombres ni uses roles genéricos
-
-4. topics: Temas principales discutidos (máximo 5)
-
-5. actionItems: Tareas o compromisos mencionados con formato:
-   [{"task":"descripción","assignee":"persona (si se menciona)","deadline":"fecha (si se menciona)","status":"pending"}]
-
-6. sentiment: Tono general (positive, neutral, negative)
-
-7. isGarbage: true si la grabación NO tiene contenido útil:
-   - Solo ruido de fondo
-   - Conversación trivial sin información relevante
-   - Fragmentos muy cortos sin contexto
-   - Pruebas técnicas
-   - Silencio prolongado
-
-8. garbageReason: Si isGarbage es true, explicar brevemente por qué
-
-9. splitSuggestion: Si la transcripción contiene múltiples temas COMPLETAMENTE diferentes que deberían ser grabaciones separadas, lista:
-   [{"topic":"Tema 1","startMarker":"frase aproximada donde empieza","reason":"por qué debería dividirse"}]
-   - Solo sugerir si hay cambios CLAROS de contexto (ej: termina reunión, luego empieza otra diferente)
-   - NO dividir conversaciones naturales que fluyen entre temas relacionados
-
-10. needsMerge: true si parece ser un fragmento incompleto de una conversación más larga
-    - Empieza a mitad de frase o sin contexto
-    - Termina abruptamente
-    - Referencias a "lo que dijimos antes" sin ese contexto
-
-Transcripción:
-"${transcript}"
-
-Responde en JSON válido:
-{
-  "title": "",
-  "summary": "",
-  "participants": [],
-  "topics": [],
-  "actionItems": [],
-  "sentiment": "",
-  "isGarbage": false,
-  "garbageReason": "",
-  "splitSuggestion": [],
-  "needsMerge": false
-}`
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 500,
-      });
-
-      const responseText = completion.choices[0]?.message?.content || '{}';
-      console.log('GPT-4o-mini response:', responseText);
-
-      // Parsear respuesta
-      let analysis;
-      try {
-        // Limpiar posibles marcadores de código
-        const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
-        analysis = JSON.parse(cleanJson);
-      } catch (parseError) {
-        console.error('Error parsing GPT response:', parseError);
-        analysis = {
-          summary: 'Error al procesar',
-          participants: [],
-          topics: [],
-          actionItems: [],
-          sentiment: 'neutral'
-        };
-      }
-
-      // Actualizar documento con análisis completo
-      await snapshot.ref.update({
-        title: analysis.title || 'Untitled Recording',
-        analysis: {
-          summary: analysis.summary || '',
-          participants: analysis.participants || [],
-          topics: analysis.topics || [],
-          actionItems: analysis.actionItems || [],
-          sentiment: analysis.sentiment || 'neutral',
-          isGarbage: analysis.isGarbage || false,
-          garbageReason: analysis.garbageReason || '',
-          splitSuggestion: analysis.splitSuggestion || [],
-          needsMerge: analysis.needsMerge || false,
-          processedAt: admin.firestore.FieldValue.serverTimestamp(),
-          model: 'gpt-4o-mini',
-        },
-        status: 'processed',
-      });
-
-      // Index in Pinecone for semantic search
-      try {
-        const userId = data.userId || data.uid || 'unknown';
-        const metadata = {
-          createdAt: data.createdAt?.toDate?.().toISOString() || new Date().toISOString(),
-          sessionId: data.sessionId || '',
-          chunkIndex: data.chunkIndex || 0,
-          title: analysis.title || 'Untitled Recording',
-        };
-        
-        await indexRecording(recordingId, userId, transcript, metadata);
-        console.log(`Recording ${recordingId} indexed in Pinecone`);
-      } catch (indexError) {
-        console.error(`Failed to index ${recordingId} in Pinecone:`, indexError);
-        // Don't fail the whole process if indexing fails
-      }
-
-      console.log(`Recording ${recordingId} processed successfully`);
-      return { success: true, recordingId, analysis };
-
-    } catch (error) {
-      console.error(`Error processing recording ${recordingId}:`, error);
-
-      // Marcar como error pero no fallar
-      await snapshot.ref.update({
-        status: 'process_error',
-        processError: error instanceof Error ? error.message : 'Unknown error',
-      });
-
-      return { success: false, error: String(error) };
-    }
-  });
-
-/**
- * Función callable para reprocesar recordings existentes que no tienen análisis
- */
-export const reprocessUnanalyzedRecordings = functions
-  .runWith({
-    secrets: ['OPENAI_API_KEY'],
-    timeoutSeconds: 540, // 9 minutos
-  })
+export const searchTranscripts = functions
+  .runWith({ secrets: ['OPENAI_API_KEY', 'PINECONE_API_KEY'], timeoutSeconds: 30 })
   .https.onCall(async (data, context) => {
-  // #region agent log
-  console.log('[DEBUG-HYPD] reprocessUnanalyzedRecordings called:', JSON.stringify({hasContext:!!context,envKeysCount:Object.keys(process.env).length,hasOpenAIKey:!!process.env.OPENAI_API_KEY,openAIKeyLength:process.env.OPENAI_API_KEY?.length || 0}));
-  // #endregion
-  
-  console.log('Starting reprocess of unanalyzed recordings...');
+        // Auth check
+                    if (!context.auth) {
+                            throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+                    }
+        const userId = context.auth.uid;
+        const { query } = data;
 
-  // Obtener recordings sin análisis
-  const snapshot = await getDb().collection('recordings')
-    .where('status', '!=', 'processed')
-    .limit(50) // Limitar para evitar timeouts
-    .get();
+                    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+                            throw new functions.https.HttpsError('invalid-argument', 'Query debe ser un string no vacío');
+                    }
 
-  console.log(`Found ${snapshot.size} unprocessed recordings`);
+                    try {
+                            const openai = getOpenAI();
+                            const embedding = await openai.embeddings.create({
+                                      model: 'text-embedding-3-small',
+                                      input: query.trim(),
+                            });
 
-  const results: { id: string; success: boolean; error?: string }[] = [];
+          const index = pinecone.index('always-transcripts');
+                            const queryResponse = await index.query({
+                                      vector: embedding.data[0].embedding,
+                                      topK: 10,
+                                      includeMetadata: true,
+                                      filter: { userId },
+                            });
 
-  for (const doc of snapshot.docs) {
-    const data = doc.data();
-    const transcript = data.transcript?.text || data.transcript;
-
-    if (!transcript || transcript === '(sin transcripción)') {
-      results.push({ id: doc.id, success: false, error: 'no_transcript' });
-      continue;
-    }
-
-    try {
-      // #region agent log
-      console.log('[DEBUG-HYPCD] Before getOpenAI call for doc:', doc.id, 'transcriptLength:', transcript.length);
-      // #endregion
-      
-      const completion = await getOpenAI().chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Eres un asistente que analiza transcripciones de conversaciones/reuniones.
-Extrae información estructurada de la transcripción proporcionada.
-Responde SOLO con JSON válido, sin markdown ni explicaciones.`
-          },
-          {
-            role: 'user',
-            content: `Analiza esta transcripción y extrae:
-1. summary: Resumen breve (1-2 oraciones)
-2. participants: Lista de participantes inferidos
-3. topics: Temas principales (máximo 5)
-4. actionItems: Tareas mencionadas
-5. sentiment: Tono general (positive, neutral, negative)
-
-Transcripción:
-"${transcript}"
-
-JSON:`
+          if (!queryResponse.matches || queryResponse.matches.length === 0) {
+                    return [];
           }
-        ],
-        temperature: 0.3,
-        max_tokens: 500,
-      });
 
-      const responseText = completion.choices[0]?.message?.content || '{}';
-      const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
-      const analysis = JSON.parse(cleanJson);
+          return queryResponse.matches.map((match: any) => ({
+                    id: match.id,
+                    score: match.score,
+                    metadata: match.metadata || {},
+          }));
+                    } catch (error: any) {
+      console.error('[searchTranscripts] Error:', error.message);
+                            throw new functions.https.HttpsError('internal', 'Error en búsqueda');
+                    }
+  });
 
-      await doc.ref.update({
-        analysis: {
-          summary: analysis.summary || '',
-          participants: analysis.participants || [],
-          topics: analysis.topics || [],
-          actionItems: analysis.actionItems || [],
-          sentiment: analysis.sentiment || 'neutral',
-          processedAt: admin.firestore.FieldValue.serverTimestamp(),
-          model: 'gpt-4o-mini',
-        },
-        status: 'processed',
-      });
+// ===========================================
+// CHAT (Callable)
+// ===========================================
 
-      results.push({ id: doc.id, success: true });
-      console.log(`Processed ${doc.id}`);
+export const chat = functions.https.onCall(async (data, context) => {
+    // Auth check
+                                             if (!context.auth) {
+                                                   throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+                                             }
+    const userId = context.auth.uid;
 
-    } catch (error) {
-      // #region agent log
-      console.log('[DEBUG-HYPABCDE] Error processing doc:', doc.id, 'Error:', JSON.stringify({errorName:error instanceof Error ? error.name : typeof error,errorMessage:error instanceof Error ? error.message : String(error),errorCause:(error as any)?.cause?.toString().substring(0,300),errorStack:(error as any)?.stack?.substring(0,500)}));
-      // #endregion
-      
-      console.error(`Error processing ${doc.id}:`, error);
-      results.push({ id: doc.id, success: false, error: String(error) });
+                                             const { message, recordingId } = data;
+    if (!message || typeof message !== 'string') {
+          throw new functions.https.HttpsError('invalid-argument', 'message es requerido');
     }
-  }
 
-  return {
-    total: snapshot.size,
-    processed: results.filter(r => r.success).length,
-    failed: results.filter(r => !r.success).length,
-    results,
-  };
+                                             let contextText = '';
+    if (recordingId) {
+          // Ownership check
+      const doc = await verifyRecordingOwnership(userId, recordingId);
+          contextText = doc.data()?.transcript || '';
+    }
+
+                                             const response = await anthropic.messages.create({
+                                                   model: 'claude-sonnet-4-20250514',
+                                                   max_tokens: 1024,
+                                                   system: `Eres un asistente que ayuda a analizar grabaciones y reuniones.
+                                                   Tienes acceso al contexto de las transcripciones del usuario.
+                                                   Responde de forma concisa y útil en español.`,
+                                                   messages: [{
+                                                           role: 'user',
+                                                           content: contextText
+                                                             ? `Contexto de la grabación:\n${contextText}\n\nPregunta: ${message}`
+                                                                     : message
+                                                   }],
+                                             });
+
+                                             return response.content[0].type === 'text' ? response.content[0].text : '';
 });
 
-// ========== FASE 7: SISTEMA DE CONFIRMACIÓN ==========
-// Cloud Functions para generar drafts y ejecutar acciones
+// ===========================================
+// GET DEEPGRAM KEY (Callable)
+// ===========================================
 
-import {
-  generateEmailDraft,
-  generateCalendarEventDraft,
-  generateGenericActionDraft,
-  regenerateDraftWithFeedback,
-} from './action-helpers';
+export const getDeepgramKey = functions
+  .runWith({ secrets: ['DEEPGRAM_API_KEY'] })
+  .https.onCall(async (data, context) => {
+        // Auth check
+                    if (!context.auth) {
+                            throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+                    }
 
-/**
- * Genera un borrador de contenido para una acción (email, evento, etc.)
- * basándose en el contexto de la conversación
- */
+                    const apiKey = process.env.DEEPGRAM_API_KEY;
+        if (!apiKey) {
+                throw new functions.https.HttpsError('failed-precondition', 'Deepgram API key not configured');
+        }
+        return { apiKey };
+  });
+
+// ===========================================
+// PROCESS RECORDING (Firestore Trigger - User Scoped)
+// ===========================================
+
+export const processRecording = functions
+  .runWith({ secrets: ['OPENAI_API_KEY', 'PINECONE_API_KEY'], timeoutSeconds: 60 })
+  .firestore
+  .document('users/{userId}/recordings/{recordingId}')
+  .onCreate(async (snapshot, context) => {
+        const recordingId = context.params.recordingId;
+        const userId = context.params.userId;
+        const data = snapshot.data();
+
+                console.log(`Processing recording ${recordingId} for user ${userId}...`);
+
+                const transcript = data.transcript?.text || data.transcript;
+        if (!transcript || transcript === '(sin transcripción)') {
+                console.log('No transcript to process, skipping');
+                return { success: false, reason: 'no_transcript' };
+        }
+
+                try {
+                        const completion = await getOpenAI().chat.completions.create({
+                                  model: 'gpt-4o-mini',
+                                  messages: [
+                                    {
+                                                  role: 'system',
+                                                  content: `Eres un asistente que analiza transcripciones de conversaciones/reuniones.
+                                                  Extrae información estructurada. Responde SOLO con JSON válido.`
+                                    },
+                                    {
+                                                  role: 'user',
+                                                  content: `Analiza esta transcripción y extrae:
+                                                  1. title: Título descriptivo corto (máx 60 caracteres)
+                                                  2. summary: Resumen breve (1-2 oraciones)
+                                                  3. participants: Lista de nombres de personas mencionadas
+                                                  4. topics: Temas principales (máximo 5)
+                                                  5. actionItems: Tareas con formato [{"task":"","assignee":"","deadline":"","status":"pending"}]
+                                                  6. sentiment: Tono general (positive, neutral, negative)
+                                                  7. isGarbage: true si no tiene contenido útil
+                                                  8. garbageReason: Si isGarbage es true, explicar por qué
+
+                                                  Transcripción: "${transcript}"
+
+                                                  JSON:`
+                                    }
+                                            ],
+                                  temperature: 0.3,
+                                  max_tokens: 500,
+                        });
+
+          const responseText = completion.choices[0]?.message?.content || '{}';
+                        const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+
+          let analysis;
+                        try {
+                                  analysis = JSON.parse(cleanJson);
+                        } catch {
+                                  analysis = {
+                                              summary: 'Error al procesar',
+                                              participants: [],
+                                              topics: [],
+                                              actionItems: [],
+                                              sentiment: 'neutral'
+                                  };
+                        }
+
+          await snapshot.ref.update({
+                    title: analysis.title || 'Untitled Recording',
+                    analysis: {
+                                summary: analysis.summary || '',
+                                participants: analysis.participants || [],
+                                topics: analysis.topics || [],
+                                actionItems: analysis.actionItems || [],
+                                sentiment: analysis.sentiment || 'neutral',
+                                isGarbage: analysis.isGarbage || false,
+                                garbageReason: analysis.garbageReason || '',
+                                processedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                model: 'gpt-4o-mini',
+                    },
+                    status: 'processed',
+          });
+
+          // Index in Pinecone
+          try {
+                    const metadata = {
+                                createdAt: data.createdAt?.toDate?.().toISOString() || new Date().toISOString(),
+                                sessionId: data.sessionId || '',
+                                chunkIndex: data.chunkIndex || 0,
+                                title: analysis.title || 'Untitled Recording',
+                    };
+                    await indexRecording(recordingId, userId, transcript, metadata);
+          } catch (indexError) {
+                    console.error(`Failed to index ${recordingId}:`, indexError);
+          }
+
+          return { success: true, recordingId, analysis };
+                } catch (error) {
+                        console.error(`Error processing ${recordingId}:`, error);
+                        await snapshot.ref.update({
+                                  status: 'process_error',
+                                  processError: error instanceof Error ? error.message : 'Unknown error',
+                        });
+                        return { success: false, error: String(error) };
+                }
+  });
+
+// ===========================================
+// REPROCESS UNANALYZED (Callable)
+// ===========================================
+
+export const reprocessUnanalyzedRecordings = functions
+  .runWith({ secrets: ['OPENAI_API_KEY'], timeoutSeconds: 540 })
+  .https.onCall(async (data, context) => {
+        // Auth check
+                    if (!context.auth) {
+                            throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+                    }
+        const userId = context.auth.uid;
+
+                    console.log(`[reprocessUnanalyzedRecordings] Starting for user ${userId}`);
+
+                    // User-scoped query
+                    const snapshot = await getDb()
+          .collection('users').doc(userId)
+          .collection('recordings')
+          .where('status', '!=', 'processed')
+          .limit(50)
+          .get();
+
+                    console.log(`Found ${snapshot.size} unprocessed recordings`);
+        const results: { id: string; success: boolean; error?: string }[] = [];
+
+                    for (const doc of snapshot.docs) {
+                            const docData = doc.data();
+                            const transcript = docData.transcript?.text || docData.transcript;
+
+          if (!transcript || transcript === '(sin transcripción)') {
+                    results.push({ id: doc.id, success: false, error: 'no_transcript' });
+                    continue;
+          }
+
+          try {
+                    const completion = await getOpenAI().chat.completions.create({
+                                model: 'gpt-4o-mini',
+                                messages: [
+                                  {
+                                                  role: 'system',
+                                                  content: `Eres un asistente que analiza transcripciones. Responde SOLO con JSON válido.`
+                                  },
+                                  {
+                                                  role: 'user',
+                                                  content: `Analiza: summary, participants, topics, actionItems, sentiment.
+                                                  Transcripción: "${transcript}"
+                                                  JSON:`
+                                  }
+                                            ],
+                                temperature: 0.3,
+                                max_tokens: 500,
+                    });
+
+                              const responseText = completion.choices[0]?.message?.content || '{}';
+                    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+                    const analysis = JSON.parse(cleanJson);
+
+                              await doc.ref.update({
+                                          analysis: {
+                                                        summary: analysis.summary || '',
+                                                        participants: analysis.participants || [],
+                                                        topics: analysis.topics || [],
+                                                        actionItems: analysis.actionItems || [],
+                                                        sentiment: analysis.sentiment || 'neutral',
+                                                        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                                        model: 'gpt-4o-mini',
+                                          },
+                                          status: 'processed',
+                              });
+
+                              results.push({ id: doc.id, success: true });
+          } catch (error) {
+                    console.error(`Error processing ${doc.id}:`, error);
+                    results.push({ id: doc.id, success: false, error: String(error) });
+          }
+                    }
+
+                    return {
+                            total: snapshot.size,
+                            processed: results.filter(r => r.success).length,
+                            failed: results.filter(r => !r.success).length,
+                            results,
+                    };
+  });
+
+// ===========================================
+// GENERATE ACTION DRAFT (Callable)
+// ===========================================
+
 export const generateActionDraft = functions
   .region('us-central1')
   .runWith({ timeoutSeconds: 60, memory: '1GB' })
   .https.onCall(async (data, context) => {
-    // Verificar autenticación
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
-    }
+        // Auth check
+                    if (!context.auth) {
+                            throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+                    }
+        const userId = context.auth.uid;
 
-    const { recordingId, action, previousDraft, feedback } = data;
+                    const { recordingId, action, previousDraft, feedback } = data;
+        if (!recordingId || !action) {
+                throw new functions.https.HttpsError('invalid-argument', 'recordingId y action son requeridos');
+        }
 
-    if (!recordingId || !action) {
-      throw new functions.https.HttpsError('invalid-argument', 'recordingId y action son requeridos');
-    }
+                    try {
+                            // Ownership check
+          const recordingDoc = await verifyRecordingOwnership(userId, recordingId);
+                            const recordingData = recordingDoc.data();
+                            const transcriptText = recordingData?.transcript?.text || recordingData?.transcript || '';
 
-    try {
-      // Obtener la grabación para el contexto
-      const recordingDoc = await getDb().collection('recordings').doc(recordingId).get();
-      
-      if (!recordingDoc.exists) {
-        throw new functions.https.HttpsError('not-found', 'Grabación no encontrada');
-      }
+          if (previousDraft && feedback) {
+                    const openai = getOpenAI();
+                    const updatedDraft = await regenerateDraftWithFeedback(openai, previousDraft, feedback);
+                    return { draft: updatedDraft };
+          }
 
-      const recordingData = recordingDoc.data();
-      const transcriptText = recordingData?.transcript?.text || '';
+          const openai = getOpenAI();
+                            let draft = '';
 
-      // Si hay feedback, regenerar el draft anterior
-      if (previousDraft && feedback) {
-        const openai = getOpenAI();
-        const updatedDraft = await regenerateDraftWithFeedback(openai, previousDraft, feedback);
-        
-        return { draft: updatedDraft };
-      }
+          switch (action.type) {
+            case 'email':
+                        draft = await generateEmailDraft(openai, action, transcriptText);
+                        break;
+            case 'meeting':
+                        draft = await generateCalendarEventDraft(openai, action, transcriptText);
+                        break;
+            default:
+                        draft = await generateGenericActionDraft(openai, action.type, action, transcriptText);
+          }
 
-      // Generar nuevo draft según el tipo de acción
-      const openai = getOpenAI();
-      let draft = '';
-
-      switch (action.type) {
-        case 'email':
-          draft = await generateEmailDraft(openai, action, transcriptText);
-          break;
-        
-        case 'meeting':
-          draft = await generateCalendarEventDraft(openai, action, transcriptText);
-          break;
-        
-        case 'call':
-        case 'document':
-        case 'followup':
-        case 'other':
-          draft = await generateGenericActionDraft(openai, action.type, action, transcriptText);
-          break;
-        
-        default:
-          throw new functions.https.HttpsError('invalid-argument', `Tipo de acción no soportado: ${action.type}`);
-      }
-
-      return { draft };
-
-    } catch (error) {
-      console.error('Error generando draft:', error);
-      
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      
-      throw new functions.https.HttpsError('internal', `Error al generar borrador: ${error instanceof Error ? error.message : String(error)}`);
-    }
+          return { draft };
+                    } catch (error) {
+                            console.error('Error generando draft:', error);
+                            if (error instanceof functions.https.HttpsError) throw error;
+                            throw new functions.https.HttpsError('internal', `Error: ${error instanceof Error ? error.message : String(error)}`);
+                    }
   });
 
-/**
- * Ejecuta una acción después de la aprobación del usuario
- * (Por ahora solo registra la acción, las integraciones reales vienen en Fase 9-10)
- */
+// ===========================================
+// EXECUTE ACTION (Callable)
+// ===========================================
+
 export const executeAction = functions
   .region('us-central1')
   .runWith({ timeoutSeconds: 60, memory: '512MB' })
   .https.onCall(async (data, context) => {
-    // Verificar autenticación
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
-    }
+        // Auth check
+                    if (!context.auth) {
+                            throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+                    }
+        const userId = context.auth.uid;
 
-    const { recordingId, action, draft } = data;
-
-    if (!recordingId || !action || !draft) {
-      throw new functions.https.HttpsError('invalid-argument', 'recordingId, action y draft son requeridos');
-    }
-
-    try {
-      // Por ahora, solo registramos la acción ejecutada
-      // En Fases 9-10 se integrarán Gmail API, Google Calendar, etc.
-      
-      const executionRecord = {
-        recordingId,
-        action,
-        draft,
-        executedAt: admin.firestore.FieldValue.serverTimestamp(),
-        executedBy: context.auth.uid,
-        status: 'executed',
-        // Placeholder para futuras integraciones
-        integrationStatus: {
-          email: null, // Se llenará cuando se integre Gmail API
-          calendar: null, // Se llenará cuando se integre Google Calendar
+                    const { recordingId, action, draft } = data;
+        if (!recordingId || !action || !draft) {
+                throw new functions.https.HttpsError('invalid-argument', 'recordingId, action y draft son requeridos');
         }
-      };
 
-      // Guardar en colección de acciones ejecutadas
-      await getDb().collection('executedActions').add(executionRecord);
+                    try {
+                            // Ownership check
+          await verifyRecordingOwnership(userId, recordingId);
 
-      // Actualizar el status del action item en la grabación
-      const recordingRef = getDb().collection('recordings').doc(recordingId);
-      const recordingDoc = await recordingRef.get();
-      
-      if (recordingDoc.exists) {
-        const data = recordingDoc.data();
-        const actionItems = data?.analysis?.actionItems || [];
-        
-        // Encontrar y actualizar el action item correspondiente
-        const updatedActionItems = actionItems.map((item: any) => {
-          if (item.description === action.description) {
-            return {
-              ...item,
-              status: 'executed',
-              executedAt: admin.firestore.FieldValue.serverTimestamp(),
-              draft: draft,
-            };
-          }
-          return item;
-        });
+          const executionRecord = {
+                    recordingId,
+                    action,
+                    draft,
+                    executedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    executedBy: userId,
+                    status: 'executed',
+                    integrationStatus: { email: null, calendar: null }
+          };
 
-        await recordingRef.update({
-          'analysis.actionItems': updatedActionItems
-        });
-      }
+          await getDb().collection('executedActions').add(executionRecord);
 
-      console.log(`Acción ejecutada: ${action.type} para recording ${recordingId}`);
+          // Update action item status
+          const recordingRef = getDb()
+                              .collection('users').doc(userId)
+                              .collection('recordings').doc(recordingId);
 
-      return { 
-        success: true,
-        message: 'Acción registrada exitosamente. Las integraciones con servicios externos se implementarán en fases posteriores.',
-        executionId: executionRecord
-      };
+          const recordingDoc = await recordingRef.get();
+                            if (recordingDoc.exists) {
+                                      const recData = recordingDoc.data();
+                                      const actionItems = recData?.analysis?.actionItems || [];
 
-    } catch (error) {
-      console.error('Error ejecutando acción:', error);
-      
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      
-      throw new functions.https.HttpsError('internal', `Error al ejecutar acción: ${error instanceof Error ? error.message : String(error)}`);
-    }
+                              const updatedActionItems = actionItems.map((item: any) => {
+                                          if (item.description === action.description) {
+                                                        return {
+                                                                        ...item,
+                                                                        status: 'executed',
+                                                                        executedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                                                        draft,
+                                                        };
+                                          }
+                                          return item;
+                              });
+
+                              await recordingRef.update({ 'analysis.actionItems': updatedActionItems });
+                            }
+
+          return { success: true, message: 'Acción registrada exitosamente' };
+                    } catch (error) {
+                            console.error('Error ejecutando acción:', error);
+                            if (error instanceof functions.https.HttpsError) throw error;
+                            throw new functions.https.HttpsError('internal', `Error: ${error instanceof Error ? error.message : String(error)}`);
+                    }
   });
 
+// ===========================================
+// GOOGLE CALENDAR INTEGRATION
+// ===========================================
 
-/**
- * ===========================
- * GOOGLE CALENDAR INTEGRATION
- * ===========================
- */
-
-/**
- * Connect Google Calendar - Exchange OAuth code for tokens
- */
 export const connectGoogleCalendar = functions
   .region('us-central1')
-  .runWith({
-    timeoutSeconds: 60,
-    memory: '256MB'
-  })
+  .runWith({ timeoutSeconds: 60, memory: '256MB' })
   .https.onCall(async (data, context) => {
-    // Verify auth
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
-    }
-    
-    const userId = context.auth.uid;
-    const { code } = data;
-    
-    if (!code) {
-      throw new functions.https.HttpsError('invalid-argument', 'Código de OAuth requerido');
-    }
-    
-    try {
-      console.log('[Calendar] Connecting calendar for user:', userId);
-      
-      const result = await exchangeCodeForTokens(userId, code);
-      
-      if (!result.success) {
-        throw new functions.https.HttpsError('internal', result.error || 'Error al conectar calendario');
-      }
-      
-      return { success: true, message: 'Calendario conectado exitosamente' };
-      
-    } catch (error) {
-      console.error('[Calendar] Error connecting calendar:', error);
-      
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      
-      throw new functions.https.HttpsError(
-        'internal',
-        `Error al conectar calendario: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+        if (!context.auth) {
+                throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+        }
+        const userId = context.auth.uid;
+        const { code } = data;
+
+                    if (!code) {
+                            throw new functions.https.HttpsError('invalid-argument', 'Código de OAuth requerido');
+                    }
+
+                    try {
+                            const result = await exchangeCodeForTokens(userId, code);
+                            if (!result.success) {
+                                      throw new functions.https.HttpsError('internal', result.error || 'Error al conectar calendario');
+                            }
+                            return { success: true, message: 'Calendario conectado exitosamente' };
+                    } catch (error) {
+                            if (error instanceof functions.https.HttpsError) throw error;
+                            throw new functions.https.HttpsError('internal', `Error: ${error instanceof Error ? error.message : String(error)}`);
+                    }
   });
 
-/**
- * Manual sync calendar events for a user
- */
 export const syncCalendar = functions
   .region('us-central1')
-  .runWith({
-    timeoutSeconds: 120,
-    memory: '512MB'
-  })
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
   .https.onCall(async (data, context) => {
-    // Verify auth
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
-    }
-    
-    const userId = context.auth.uid;
-    
-    try {
-      console.log('[Calendar] Manual sync requested for user:', userId);
-      
-      await syncUserCalendar(userId);
-      
-      return { success: true, message: 'Calendario sincronizado exitosamente' };
-      
-    } catch (error) {
-      console.error('[Calendar] Error syncing calendar:', error);
-      
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      
-      throw new functions.https.HttpsError(
-        'internal',
-        `Error al sincronizar calendario: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+        if (!context.auth) {
+                throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+        }
+        const userId = context.auth.uid;
+
+                    try {
+                            await syncUserCalendar(userId);
+                            return { success: true, message: 'Calendario sincronizado exitosamente' };
+                    } catch (error) {
+                            if (error instanceof functions.https.HttpsError) throw error;
+                            throw new functions.https.HttpsError('internal', `Error: ${error instanceof Error ? error.message : String(error)}`);
+                    }
   });
 
-/**
- * Scheduled sync - Run every hour for all active users
- */
 export const scheduledCalendarSync = functions
   .region('us-central1')
-  .runWith({
-    timeoutSeconds: 540, // 9 minutes (max for scheduled functions)
-    memory: '1GB'
-  })
+  .runWith({ timeoutSeconds: 540, memory: '1GB' })
   .pubsub.schedule('every 1 hours')
-  .onRun(async (context) => {
-    try {
-      console.log('[Calendar] Starting scheduled sync for all users');
-      
-      await syncAllActiveCalendars();
-      
-      console.log('[Calendar] Scheduled sync completed');
-      
-      return null;
-    } catch (error) {
-      console.error('[Calendar] Error in scheduled sync:', error);
-      // Don't throw - we want the function to complete even if some users fail
-      return null;
-    }
+  .onRun(async () => {
+        try {
+                await syncAllActiveCalendars();
+                return null;
+        } catch (error) {
+                console.error('[Calendar] Scheduled sync error:', error);
+                return null;
+        }
   });
 
-/**
- * Disconnect Google Calendar
- */
 export const disconnectGoogleCalendar = functions
   .region('us-central1')
-  .runWith({
-    timeoutSeconds: 30,
-    memory: '256MB'
-  })
+  .runWith({ timeoutSeconds: 30, memory: '256MB' })
   .https.onCall(async (data, context) => {
-    // Verify auth
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
-    }
-    
-    const userId = context.auth.uid;
-    
-    try {
-      console.log('[Calendar] Disconnecting calendar for user:', userId);
-      
-      // Mark as inactive (don't delete - keep for audit)
-      await getDb().collection('users').doc(userId)
-        .collection('calendarAuth').doc('google').update({
-          isActive: false,
-          disconnectedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-      
-      return { success: true, message: 'Calendario desconectado exitosamente' };
-      
-    } catch (error) {
-      console.error('[Calendar] Error disconnecting calendar:', error);
-      
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      
-      throw new functions.https.HttpsError(
-        'internal',
-        `Error al desconectar calendario: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+        if (!context.auth) {
+                throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+        }
+        const userId = context.auth.uid;
+
+                    try {
+                            await getDb().collection('users').doc(userId)
+                              .collection('calendarAuth').doc('google').update({
+                                          isActive: false,
+                                          disconnectedAt: admin.firestore.FieldValue.serverTimestamp()
+                              });
+                            return { success: true, message: 'Calendario desconectado exitosamente' };
+                    } catch (error) {
+                            if (error instanceof functions.https.HttpsError) throw error;
+                            throw new functions.https.HttpsError('internal', `Error: ${error instanceof Error ? error.message : String(error)}`);
+                    }
   });
 
-/**
- * Manual correlation trigger (for testing or re-correlation)
- */
 export const correlateRecordingsWithEvents = functions
   .region('us-central1')
-  .runWith({
-    timeoutSeconds: 120,
-    memory: '512MB'
-  })
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
   .https.onCall(async (data, context) => {
-    // Verify auth
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
-    }
-    
-    const userId = context.auth.uid;
-    
-    try {
-      console.log('[Calendar] Manual correlation requested for user:', userId);
-      
-      await correlateEventsWithRecordings(userId);
-      
-      return { success: true, message: 'Correlación completada exitosamente' };
-      
-    } catch (error) {
-      console.error('[Calendar] Error correlating:', error);
-      
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
-      
-      throw new functions.https.HttpsError(
-        'internal',
-        `Error al correlacionar: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+        if (!context.auth) {
+                throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+        }
+        const userId = context.auth.uid;
+
+                    try {
+                            await correlateEventsWithRecordings(userId);
+                            return { success: true, message: 'Correlación completada exitosamente' };
+                    } catch (error) {
+                            if (error instanceof functions.https.HttpsError) throw error;
+                            throw new functions.https.HttpsError('internal', `Error: ${error instanceof Error ? error.message : String(error)}`);
+                    }
   });
 
-// ==================== Daily Summary ====================
+// ===========================================
+// EXPORTS
+// ===========================================
+
 export { generateDailySummary };
-
-// ==================== Indexing ====================
 export { indexAllRecordings };
-
-// ==================== Reprocessing ====================
 export { reprocessAllUserRecordings };
-
-// ==================== Security & Migration ====================
 export { migrateRecordingsToUser, verifyMigrationStatus } from './migrate-recordings';
 
-// ==================== LaraHQ Sync ====================
+// ===========================================
+// LARAHQ SYNC (con filtro de seguridad)
+// ===========================================
 
-// Lazy init LaraHQ Firebase app
 let laraHqApp: admin.app.App | null = null;
 let laraHqDb: admin.firestore.Firestore | null = null;
 
 function getLaraHqDb(): admin.firestore.Firestore {
-  if (!laraHqDb) {
-    try {
-      // Initialize LaraHQ app with service account
-      const serviceAccount = require('../larahq-service-account.json');
-
-      laraHqApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: 'larahq-8ea30',
-      }, 'larahq');
-
-      laraHqDb = laraHqApp.firestore();
-      console.log('[LaraHQ] Firebase app initialized successfully');
-    } catch (error) {
-      console.error('[LaraHQ] Failed to initialize:', error);
-      throw new Error('LaraHQ service account not configured');
+    if (!laraHqDb) {
+          try {
+                  const serviceAccount = require('../larahq-service-account.json');
+                  laraHqApp = admin.initializeApp({
+                            credential: admin.credential.cert(serviceAccount),
+                            projectId: 'larahq-8ea30',
+                  }, 'larahq');
+                  laraHqDb = laraHqApp.firestore();
+          } catch (error) {
+                  throw new Error('LaraHQ service account not configured');
+          }
     }
-  }
-  return laraHqDb;
+    return laraHqDb;
 }
 
-/**
- * Sync transcriptions to LaraHQ Firestore
- * Triggered when a new document is created in the "transcriptions" collection
- */
 export const syncTranscriptionToLaraHQ = functions
   .region('us-central1')
-  .runWith({
-    timeoutSeconds: 30,
-    memory: '256MB'
-  })
+  .runWith({ timeoutSeconds: 30, memory: '256MB' })
   .firestore
   .document('transcriptions/{transcriptionId}')
   .onCreate(async (snapshot, context) => {
-    const transcriptionId = context.params.transcriptionId;
-    const data = snapshot.data();
+        const transcriptionId = context.params.transcriptionId;
+        const data = snapshot.data();
 
-        // FILTRO DE SEGURIDAD: Solo sincronizar transcripciones de ricardo.rodriguez@getlawgic.com
-            // El userId autorizado es el único que puede sincronizar con LaraHQ
-                const AUTHORIZED_USER_ID = 'oP9ZzurAiEgnE'; // ricardo.rodriguez@getlawgic.com (primeros caracteres del UID)
-                    const userId = data.userId || data.uid || '';
-                        
-                            // Verificar si el userId comienza con el ID autorizado
-                                if (!userId || !userId.startsWith(AUTHORIZED_USER_ID.substring(0, 10))) {
-                                      console.log(`[LaraHQ] Skipping sync for unauthorized user: ${userId ? userId.substring(0, 10) + '...' : 'unknown'}`);
-                                            return { success: false, reason: 'unauthorized_user' };
-                                                }
+                // Security filter: Only sync for authorized user
+                const AUTHORIZED_USER_ID = 'oP9ZzurAiEgnE';
+        const userId = data.userId || data.uid || '';
 
-    console.log(`[LaraHQ] Syncing transcription ${transcriptionId} to LaraHQ...`);
+                if (!userId || !userId.startsWith(AUTHORIZED_USER_ID.substring(0, 10))) {
+                        return { success: false, reason: 'unauthorized_user' };
+                }
 
-    try {
-      const laraDb = getLaraHqDb();
+                try {
+                        const laraDb = getLaraHqDb();
+                        const inboxDocument = {
+                                  type: 'transcription',
+                                  source: 'always',
+                                  sourceId: transcriptionId,
+                                  text: data.text || data.transcript?.text || data.transcript || '',
+                                  duration: data.duration || null,
+                                  createdAt: data.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+                                  processedByLara: false,
+                                  syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                  originalData: {
+                                              userId: data.userId || null,
+                                              sessionId: data.sessionId || null,
+                                  }
+                        };
 
-      // Prepare document for LaraHQ inbox
-      const inboxDocument = {
-        type: 'transcription',
-        source: 'always',
-        sourceId: transcriptionId,
-        text: data.text || data.transcript?.text || data.transcript || '',
-        duration: data.duration || null,
-        createdAt: data.createdAt || admin.firestore.FieldValue.serverTimestamp(),
-        processedByLara: false,
-        // Additional metadata
-        syncedAt: admin.firestore.FieldValue.serverTimestamp(),
-        originalData: {
-          userId: data.userId || null,
-          sessionId: data.sessionId || null,
-        }
-      };
+          const docRef = await laraDb.collection('inbox').add(inboxDocument);
 
-      // Write to LaraHQ inbox collection
-      const docRef = await laraDb.collection('inbox').add(inboxDocument);
+          await snapshot.ref.update({
+                    laraHqSync: {
+                                synced: true,
+                                syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                laraHqDocId: docRef.id,
+                    }
+          });
 
-      console.log(`[LaraHQ] Transcription ${transcriptionId} synced to LaraHQ inbox as ${docRef.id}`);
-
-      // Update original document to mark as synced
-      await snapshot.ref.update({
-        laraHqSync: {
-          synced: true,
-          syncedAt: admin.firestore.FieldValue.serverTimestamp(),
-          laraHqDocId: docRef.id,
-        }
-      });
-
-      return { success: true, laraHqDocId: docRef.id };
-
-    } catch (error) {
-      console.error(`[LaraHQ] Error syncing transcription ${transcriptionId}:`, error);
-
-      // Mark as failed in original document
-      await snapshot.ref.update({
-        laraHqSync: {
-          synced: false,
-          error: error instanceof Error ? error.message : String(error),
-          lastAttempt: admin.firestore.FieldValue.serverTimestamp(),
-        }
-      });
-
-      return { success: false, error: String(error) };
-    }
+          return { success: true, laraHqDocId: docRef.id };
+                } catch (error) {
+                        await snapshot.ref.update({
+                                  laraHqSync: {
+                                              synced: false,
+                                              error: error instanceof Error ? error.message : String(error),
+                                              lastAttempt: admin.firestore.FieldValue.serverTimestamp(),
+                                  }
+                        });
+                        return { success: false, error: String(error) };
+                }
   });
