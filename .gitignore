@@ -41,3 +41,13 @@ capture-app/dist/
 
 # Testing
 coverage/
+
+# ===========================================
+# SECURITY: Service accounts and credentials
+# ===========================================
+**/service-account*.json
+**/serviceAccount*.json
+**/*-service-account.json
+**/larahq-service-account.json
+**/*.p12
+**/*.key
