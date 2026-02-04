@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { onRecordingsChange, saveRecording, deleteRecording, recoverRecording, hardDeleteRecording, updateActionItemStatus } from '@/lib/firebase';
+import { onRecordingsChange, onDeletedRecordingsChange, saveRecording, deleteRecording, recoverRecording, hardDeleteRecording, updateActionItemStatus } from '@/lib/firebase';
 import { RealtimeTranscription } from '@/lib/realtime-transcription';
 import { SemanticSearch } from '@/components/SemanticSearch';
 import { db, functions, auth } from '@/lib/firebase';
@@ -197,26 +197,11 @@ export default function Home() {
     }
 
     // Real-time listener para grabaciones activas (no eliminadas) desde Firestore
-    const q = query(
-      collection(db, 'recordings'),
-      where('deletedAt', '==', null),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const recordingsData = snapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-        // SECURITY: Filter by current user's userId
-        .filter((rec: any) => rec.userId === user.uid);
-
-      setRecordings(recordingsData);
-      console.log('Loaded recordings:', recordingsData.length);
-    }, (error) => {
-      console.error('Error loading recordings:', error);
-    });
+// Use the centralized onRecordingsChange from firebase.ts which queries the user-scoped subcollection
+        const unsubscribe = onRecordingsChange((recordingsData) => {
+                setRecordings(recordingsData);
+                console.log('Loaded recordings:', recordingsData.length);
+        });
 
     return () => unsubscribe();
   }, [user]);
@@ -229,18 +214,10 @@ export default function Home() {
     }
 
     // Contar grabaciones eliminadas para el badge de papelera
-    const q = query(
-      collection(db, 'recordings'),
-      where('deletedAt', '!=', null)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      // SECURITY: Filter by current user's userId
-      const userDeletedCount = snapshot.docs.filter(
-        (doc) => doc.data().userId === user.uid
-      ).length;
-      setDeletedCount(userDeletedCount);
-    });
+// Use the centralized onDeletedRecordingsChange from firebase.ts
+        const unsubscribe = onDeletedRecordingsChange((deletedRecordings) => {
+                setDeletedCount(deletedRecordings.length);
+        });
 
     return () => unsubscribe();
   }, [user]);
