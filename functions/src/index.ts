@@ -22,10 +22,18 @@ import {
     generateGenericActionDraft,
     regenerateDraftWithFeedback,
 } from './action-helpers';
+// Conversation consolidation
+import {
+      consolidateSessions,
+      forceConsolidateSession,
+      getConversations,
+      consolidateAllPending,
+} from './conversation-consolidator';
 
 admin.initializeApp();
 
 // Lazy init to avoid Firebase Admin initialization errors
+
 function getDb() { return admin.firestore(); }
 const storage = admin.storage();
 
@@ -387,6 +395,7 @@ export const processRecording = functions
                                 model: 'gpt-4o-mini',
                     },
                     status: 'processed',
+                      consolidated: false,  // Mark as pending consolidation
           });
 
           // Index in Pinecone
@@ -734,6 +743,8 @@ export { migrateRecordingsToUser, verifyMigrationStatus } from './migrate-record
 // ===========================================
 // LARAHQ SYNC (con filtro de seguridad)
 // ===========================================
+// Conversation consolidation exports
+export { consolidateSessions, forceConsolidateSession, getConversations, consolidateAllPending };
 
 let laraHqApp: admin.app.App | null = null;
 let laraHqDb: admin.firestore.Firestore | null = null;
