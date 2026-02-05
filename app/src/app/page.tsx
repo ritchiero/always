@@ -2035,7 +2035,7 @@ export default function Home() {
                                 return (
                                   <div key={idx} className="flex items-start gap-2 text-sm text-gray-300">
                                     <span className="text-green-400">✓</span>
-                                    <span>{item}</span>
+                                    <span>{typeof item === 'string' ? item : (item.task || JSON.stringify(item))}</span>
                                   </div>
                                 );
                               }
