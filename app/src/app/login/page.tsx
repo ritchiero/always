@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { AlwaysLogo } from '@/components/AlwaysLogo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -71,12 +72,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo y Título */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Always</h1>
+                        <AlwaysLogo size="large" />
+              <h1 className="text-3xl font-semibold tracking-wide text-white mb-2">Always</h1>
           <p className="text-gray-500">Grabación continua con IA</p>
         </div>
 
