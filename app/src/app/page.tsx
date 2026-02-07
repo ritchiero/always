@@ -13,6 +13,7 @@ import { httpsCallable } from 'firebase/functions';
 import { ActionConfirmationModal } from '@/components/ActionConfirmationModal';
 import { RecordingControl } from '@/components/RecordingControl';
 import { CalendarView } from '@/components/CalendarView';
+import { AlwaysLogoFull, AlwaysLogo } from '@/components/AlwaysLogo';
 
 // Icon components
 const HomeIcon = () => (
@@ -957,7 +958,7 @@ export default function Home() {
       {/* Top Header with User Menu */}
       <header className="h-14 border-b border-white/10 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">Always</h1>
+                        <AlwaysLogoFull />
         </div>
         
         {/* User Menu */}
