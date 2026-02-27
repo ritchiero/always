@@ -61,6 +61,19 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
       
+      // Checkpoints (silent session backups during recording)
+      match /checkpoints/{checkpointId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Conversations (consolidated from recordings)
+      match /conversations/{conversationId} {
+        allow read: if isOwner(userId);
+        // Write only from backend (Cloud Functions run with admin SDK, bypasses rules)
+        // But allow user to update for marking as read, archiving, etc.
+        allow write: if isOwner(userId);
+      }
+      
       // Daily summaries
       match /dailySummaries/{date} {
         allow read, write: if isOwner(userId);
