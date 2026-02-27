@@ -301,7 +301,7 @@ export default function DailyPage() {
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📊</div>
               <h2 className="text-2xl font-bold mb-4">
-                No hay resumen para {new Date(selectedDate).toLocaleDateString('es-MX', { 
+                No hay resumen para {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-MX', { 
                   weekday: 'long', 
                   year: 'numeric', 
                   month: 'long', 
