@@ -95,9 +95,9 @@ const SendIcon = () => (
   </svg>
 );
 
-// Constantes de configuración para auto-chunking
-const CHUNK_DURATION_MS = 15 * 60 * 1000; // 15 minutos
-const SILENCE_THRESHOLD_MS = 30 * 1000; // 30 segundos de silencio para pausar (cambiar a 2*60*1000 para producción)
+// Constantes de configuración para sesión continua
+const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000; // Autoguardado silencioso cada 5 min (backup, no corta nada)
+const CONVERSATION_END_SILENCE_MS = 2 * 60 * 1000; // 2 min de silencio = conversación terminó
 const VOICE_THRESHOLD = -50; // dB umbral para detectar voz (ajustable)
 const VOICE_CHECK_INTERVAL = 500; // Chequear voz cada 500ms
 
@@ -129,12 +129,11 @@ export default function Home() {
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [finalTranscripts, setFinalTranscripts] = useState<TranscriptSegment[]>([]);
   
-  // Nuevos estados para auto-chunking y detección de voz
-  const [isListening, setIsListening] = useState(false); // Estado "escuchando" (esperando voz)
+  // Estados para sesión continua y detección de voz
+  const [isListening, setIsListening] = useState(false); // Estado "escuchando" (esperando voz tras silencio largo)
   const [lastVoiceActivity, setLastVoiceActivity] = useState<number>(0); // Timestamp última actividad
-  const [currentChunkNumber, setCurrentChunkNumber] = useState(1); // Número de chunk actual
   const [sessionStartTime, setSessionStartTime] = useState<number>(0); // Inicio de sesión
-  const [chunkStartTime, setChunkStartTime] = useState<number>(0); // Inicio de chunk actual
+  const [lastCheckpointTime, setLastCheckpointTime] = useState<number>(0); // Último checkpoint guardado
 
   // Estado para reprocesamiento
   const [isReprocessing, setIsReprocessing] = useState(false);
@@ -168,12 +167,13 @@ export default function Home() {
   const startTimeRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null); // Mantener stream activo para detección de voz
   
-  // Refs adicionales para auto-chunking
-  const chunkTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer de 15 min
+  // Refs adicionales para sesión continua
+  const checkpointTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer de checkpoint (5 min)
   const voiceDetectionTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer de detección de silencio
   const analyserRef = useRef<AnalyserNode | null>(null); // Para análisis de audio
   const voiceDetectionIntervalRef = useRef<NodeJS.Timeout | null>(null); // Intervalo de chequeo
   const audioContextRef = useRef<AudioContext | null>(null); // Contexto de audio
+  const lastCheckpointTranscriptLengthRef = useRef<number>(0); // Para saber si hay contenido nuevo desde último checkpoint
 
   // Refs para rastrear estado actual en el interval (evita stale closures)
   const isRecordingRef = useRef(false);
@@ -181,13 +181,11 @@ export default function Home() {
   const lastVoiceActivityRef = useRef<number>(0);
 
   // Refs para funciones (evita recrear el interval cuando cambian)
-  const pauseRecordingRef = useRef<() => Promise<void>>();
+  const saveConversationRef = useRef<(reason: string) => Promise<void>>();
   const resumeRecordingRef = useRef<() => Promise<void>>();
 
-  // Refs para valores usados en saveCurrentChunk
-  const currentChunkNumberRef = useRef(1);
+  // Refs para valores usados en saveCheckpoint/saveConversation
   const sessionStartTimeRef = useRef(0);
-  const chunkStartTimeRef = useRef(0);
   const finalTranscriptsRef = useRef<TranscriptSegment[]>([]);
 
   useEffect(() => {
@@ -237,16 +235,8 @@ export default function Home() {
   }, [lastVoiceActivity]);
 
   useEffect(() => {
-    currentChunkNumberRef.current = currentChunkNumber;
-  }, [currentChunkNumber]);
-
-  useEffect(() => {
     sessionStartTimeRef.current = sessionStartTime;
   }, [sessionStartTime]);
-
-  useEffect(() => {
-    chunkStartTimeRef.current = chunkStartTime;
-  }, [chunkStartTime]);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -283,7 +273,7 @@ export default function Home() {
     setError(error.message);
   }, []);
 
-  // ========== FUNCIONES DE AUTO-CHUNKING Y DETECCIÓN DE VOZ ==========
+  // ========== FUNCIONES DE SESIÓN CONTINUA Y DETECCIÓN INTELIGENTE ==========
 
   /**
    * Configura el sistema de detección de voz usando Web Audio API
@@ -356,9 +346,143 @@ export default function Home() {
   }, []);
 
   /**
+   * Guarda un checkpoint silencioso de la transcripción acumulada.
+   * NO corta la sesión, NO para Deepgram, NO para el MediaRecorder.
+   * Es solo un backup en caso de crash.
+   */
+  const saveCheckpoint = useCallback(async () => {
+    try {
+      const transcripts = finalTranscriptsRef.current;
+      const fullTranscript = transcripts.map(s => s.text).join(' ');
+      
+      // Solo guardar si hay contenido nuevo desde el último checkpoint
+      if (fullTranscript.length <= lastCheckpointTranscriptLengthRef.current) {
+        console.log('[Checkpoint] Sin contenido nuevo, saltando...');
+        return;
+      }
+
+      const sessionId = sessionStartTimeRef.current;
+      if (!sessionId) return;
+
+      console.log(`[Checkpoint] Guardando backup silencioso (${fullTranscript.length} chars)...`);
+
+      // Guardar/actualizar un documento de checkpoint (se sobreescribe cada vez)
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      const { doc: firestoreDoc, setDoc } = await import('firebase/firestore');
+      const checkpointRef = firestoreDoc(db, 'users', currentUser.uid, 'checkpoints', `session-${sessionId}`);
+      await setDoc(checkpointRef, {
+        sessionId,
+        transcript: fullTranscript,
+        segmentCount: transcripts.length,
+        sessionStartTime: sessionId,
+        lastUpdate: Date.now(),
+        status: 'recording',
+      }, { merge: true });
+
+      lastCheckpointTranscriptLengthRef.current = fullTranscript.length;
+      setLastCheckpointTime(Date.now());
+      console.log('[Checkpoint] Backup guardado exitosamente');
+    } catch (error) {
+      console.error('[Checkpoint] Error guardando backup:', error);
+    }
+  }, []);
+
+  /**
+   * Guarda la conversación COMPLETA como una sola grabación.
+   * Se llama cuando la conversación realmente terminó (silencio largo o stop manual).
+   */
+  const saveConversation = useCallback(async (reason: string) => {
+    try {
+      const transcripts = finalTranscriptsRef.current;
+      const sessionId = sessionStartTimeRef.current;
+      const fullTranscript = transcripts.map(s => s.text).join(' ');
+
+      console.log(`[Conversation] Guardando conversación completa (razón: ${reason}, ${fullTranscript.length} chars)...`);
+
+      // Solo guardar si hay contenido
+      if (fullTranscript && fullTranscript.length > 10) {
+        const totalDuration = Math.floor((Date.now() - sessionId) / 1000);
+
+        // Crear audioBlob del TOTAL acumulado
+        const audioBlob = audioChunksRef.current.length > 0
+          ? new Blob(audioChunksRef.current, { type: 'audio/webm' })
+          : undefined;
+
+        await saveRecording(
+          fullTranscript,
+          audioBlob,
+          totalDuration,
+          {
+            sessionId: sessionId,
+            chunkStartTime: sessionId,
+            chunkEndTime: Date.now(),
+            isAutoSaved: reason !== 'manual_stop',
+          }
+        );
+
+        console.log(`[Conversation] Conversación guardada exitosamente (${totalDuration}s)`);
+      } else {
+        console.log('[Conversation] Sin contenido suficiente, no se guarda');
+      }
+
+      // Limpiar checkpoint (ya no se necesita)
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser && sessionId) {
+          const { doc: firestoreDoc, deleteDoc: firestoreDeleteDoc } = await import('firebase/firestore');
+          const checkpointRef = firestoreDoc(db, 'users', currentUser.uid, 'checkpoints', `session-${sessionId}`);
+          await firestoreDeleteDoc(checkpointRef);
+        }
+      } catch (e) {
+        console.warn('[Conversation] Error limpiando checkpoint:', e);
+      }
+
+      // Limpiar datos de la sesión
+      audioChunksRef.current = [];
+      setFinalTranscripts([]);
+      finalTranscriptsRef.current = [];
+      setCurrentTranscript('');
+      lastCheckpointTranscriptLengthRef.current = 0;
+    } catch (error) {
+      console.error('[Conversation] Error guardando:', error);
+      setError('Error al guardar conversación');
+    }
+  }, []);
+
+  // Mantener ref actualizado
+  useEffect(() => {
+    saveConversationRef.current = saveConversation;
+  }, [saveConversation]);
+
+  /**
+   * Inicia el timer de checkpoints periódicos.
+   * Los checkpoints son silenciosos: NO interrumpen la grabación.
+   */
+  const startCheckpointTimer = useCallback(() => {
+    // Limpiar timer anterior
+    if (checkpointTimerRef.current) {
+      clearInterval(checkpointTimerRef.current);
+    }
+    
+    checkpointTimerRef.current = setInterval(async () => {
+      if (isRecordingRef.current) {
+        await saveCheckpoint();
+      }
+    }, CHECKPOINT_INTERVAL_MS);
+
+    console.log(`[Checkpoint] Timer iniciado: cada ${CHECKPOINT_INTERVAL_MS / 60000} min`);
+  }, [saveCheckpoint]);
+
+  /**
    * Loop principal de detección de voz
-   * Se ejecuta cada VOICE_CHECK_INTERVAL ms para monitorear actividad
-   * Usa refs para acceder a valores actuales (evita stale closures)
+   * Se ejecuta cada VOICE_CHECK_INTERVAL ms para monitorear actividad.
+   * 
+   * Lógica de fin de conversación:
+   * - Si hay 2+ minutos de silencio continuo MIENTRAS grabamos -> la conversación terminó
+   * - Guarda la conversación completa y entra en modo "listening"
+   * - Si se detecta voz en modo "listening" -> nueva conversación
    */
   const startVoiceDetectionLoop = useCallback(() => {
     console.log('Iniciando loop de detección de voz...');
@@ -376,65 +500,52 @@ export default function Home() {
       const currentIsListening = isListeningRef.current;
       const currentLastVoiceActivity = lastVoiceActivityRef.current;
 
-      // Si estamos en modo "listening" y detectamos voz, reanudar grabación
+      // Si estamos en modo "listening" y detectamos voz, iniciar nueva conversación
       if (hasVoice && currentIsListening) {
-        console.log('Voz detectada en modo listening, reanudando grabación...');
+        console.log('Voz detectada en modo listening, iniciando nueva conversación...');
         resumeRecordingRef.current?.();
       }
 
-      // Si estamos grabando pero no hay voz, verificar tiempo de silencio
+      // Si estamos grabando pero no hay voz, verificar si la conversación terminó
       if (!hasVoice && currentIsRecording && !currentIsListening) {
         const silenceDuration = Date.now() - currentLastVoiceActivity;
 
-        if (silenceDuration > SILENCE_THRESHOLD_MS) {
-          console.log(`Silencio detectado por ${Math.floor(silenceDuration / 1000)}s, pausando grabación...`);
-          pauseRecordingRef.current?.();
+        if (silenceDuration > CONVERSATION_END_SILENCE_MS) {
+          console.log(`[Conversation End] Silencio de ${Math.floor(silenceDuration / 1000)}s detectado. Conversación terminada.`);
+          // Guardar la conversación completa y pasar a modo listening
+          saveConversationRef.current?.('silence_detected');
+          
+          // Cambiar a modo listening (NO paramos el analyser ni el stream)
+          setIsRecording(false);
+          setIsListening(true);
+          isRecordingRef.current = false;
+          isListeningRef.current = true;
+
+          // Parar transcripción pero mantener detección de voz
+          if (transcriptionRef.current) {
+            transcriptionRef.current.stop();
+            transcriptionRef.current = null;
+          }
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+          }
+
+          // Limpiar checkpoint timer
+          if (checkpointTimerRef.current) {
+            clearInterval(checkpointTimerRef.current);
+            checkpointTimerRef.current = null;
+          }
         }
       }
     }, VOICE_CHECK_INTERVAL);
   }, [checkVoiceActivity]);
 
   /**
-   * Pausa la grabación cuando se detecta silencio prolongado
-   * Guarda el chunk actual y entra en modo "listening"
-   */
-  const pauseRecording = useCallback(async () => {
-    console.log('Pausando grabación...');
-
-    // Cambiar estados inmediatamente para evitar múltiples llamadas
-    setIsRecording(false);
-    setIsListening(true);
-    isRecordingRef.current = false;
-    isListeningRef.current = true;
-
-    // Parar transcripción pero mantener analyser activo
-    if (transcriptionRef.current) {
-      await transcriptionRef.current.stop();
-      transcriptionRef.current = null;
-    }
-
-    // Parar MediaRecorder
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-
-    // Guardar chunk actual (después de parar para capturar todo el audio)
-    await saveCurrentChunk();
-
-    console.log('Grabación pausada, entrando en modo listening...');
-  }, []);
-
-  // Mantener ref actualizado
-  useEffect(() => {
-    pauseRecordingRef.current = pauseRecording;
-  }, [pauseRecording]);
-
-  /**
-   * Reanuda la grabación cuando se detecta voz después de una pausa
-   * Incrementa el número de chunk y reinicia timers
+   * Reanuda la grabación cuando se detecta voz después de un fin de conversación.
+   * Inicia una NUEVA sesión/conversación (nuevo sessionId, nuevos transcripts).
    */
   const resumeRecording = useCallback(async () => {
-    console.log('Reanudando grabación...');
+    console.log('Iniciando nueva conversación tras silencio...');
 
     try {
       // Cambiar estados inmediatamente
@@ -444,12 +555,17 @@ export default function Home() {
       isRecordingRef.current = true;
 
       const now = Date.now();
-      setCurrentChunkNumber(prev => prev + 1);
-      setChunkStartTime(now);
+      setSessionStartTime(now);
+      sessionStartTimeRef.current = now;
       setLastVoiceActivity(now);
       lastVoiceActivityRef.current = now;
+      setFinalTranscripts([]);
+      finalTranscriptsRef.current = [];
+      setCurrentTranscript('');
+      audioChunksRef.current = [];
+      lastCheckpointTranscriptLengthRef.current = 0;
 
-      // Reiniciar transcripción
+      // Iniciar transcripción
       transcriptionRef.current = new RealtimeTranscription(handleTranscript, handleError);
       await transcriptionRef.current.start();
 
@@ -472,111 +588,22 @@ export default function Home() {
 
       mediaRecorderRef.current.start(1000);
 
-      // Reiniciar timer de chunk (15 min)
-      if (chunkTimerRef.current) {
-        clearTimeout(chunkTimerRef.current);
-      }
-      chunkTimerRef.current = setTimeout(onChunkTimerExpired, CHUNK_DURATION_MS);
+      // Iniciar checkpoint timer
+      startCheckpointTimer();
 
-      console.log('Grabación reanudada');
+      console.log('Nueva conversación iniciada');
     } catch (error) {
-      console.error('Error reanudando grabación:', error);
-      setError('Error al reanudar grabación');
+      console.error('Error iniciando nueva conversación:', error);
+      setError('Error al iniciar grabación');
     }
-  }, [handleTranscript, handleError, setupVoiceDetection]);
+  }, [handleTranscript, handleError, setupVoiceDetection, startCheckpointTimer]);
 
   // Mantener ref actualizado
   useEffect(() => {
     resumeRecordingRef.current = resumeRecording;
   }, [resumeRecording]);
 
-  /**
-   * Guarda el chunk actual en Firebase
-   * Se llama automáticamente cada 15 min o al detectar silencio
-   * Usa refs para obtener valores actuales
-   */
-  const saveCurrentChunk = useCallback(async () => {
-    try {
-      // Usar refs para obtener valores actuales
-      const chunkNum = currentChunkNumberRef.current;
-      const sessionId = sessionStartTimeRef.current;
-      const chunkStart = chunkStartTimeRef.current;
-      const transcripts = finalTranscriptsRef.current;
-
-      console.log(`Guardando chunk ${chunkNum}...`);
-
-      // Crear audioBlob del chunk actual
-      const audioBlob = audioChunksRef.current.length > 0
-        ? new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        : undefined;
-
-      // Obtener transcripción acumulada
-      const fullTranscript = transcripts.map(s => s.text).join(' ');
-
-      // Solo guardar si hay contenido
-      if (fullTranscript || audioBlob) {
-        const chunkDuration = Math.floor((Date.now() - chunkStart) / 1000);
-
-        await saveRecording(
-          fullTranscript || '(sin transcripción)',
-          audioBlob,
-          chunkDuration,
-          {
-            chunkNumber: chunkNum,
-            sessionId: sessionId,
-            chunkStartTime: chunkStart,
-            chunkEndTime: Date.now(),
-            isAutoSaved: true,
-          }
-        );
-
-        console.log(`Chunk ${chunkNum} guardado exitosamente`);
-
-        // Limpiar datos del chunk
-        audioChunksRef.current = [];
-        setFinalTranscripts([]);
-        finalTranscriptsRef.current = [];
-        setCurrentTranscript('');
-      } else {
-        console.log('Chunk vacío, no se guarda');
-      }
-    } catch (error) {
-      console.error('Error guardando chunk:', error);
-      setError('Error al guardar chunk');
-    }
-  }, []);
-
-  /**
-   * Se ejecuta cuando expira el timer de 15 minutos
-   * Guarda el chunk actual y continúa grabando en un nuevo chunk
-   * Usa refs para obtener valores actuales
-   */
-  const onChunkTimerExpired = useCallback(async () => {
-    console.log('Timer de chunk expirado (15 min), guardando chunk...');
-
-    await saveCurrentChunk();
-
-    // Si aún estamos grabando, continuar en nuevo chunk (usar refs)
-    if (isRecordingRef.current && !isListeningRef.current) {
-      const newChunkNumber = currentChunkNumberRef.current + 1;
-      const now = Date.now();
-
-      setCurrentChunkNumber(newChunkNumber);
-      setChunkStartTime(now);
-      currentChunkNumberRef.current = newChunkNumber;
-      chunkStartTimeRef.current = now;
-
-      // Reiniciar timer para próximo chunk
-      if (chunkTimerRef.current) {
-        clearTimeout(chunkTimerRef.current);
-      }
-      chunkTimerRef.current = setTimeout(onChunkTimerExpired, CHUNK_DURATION_MS);
-
-      console.log('Continuando grabación en nuevo chunk', newChunkNumber);
-    }
-  }, [saveCurrentChunk]);
-
-  // ========== FIN DE FUNCIONES DE AUTO-CHUNKING ==========
+  // ========== FIN DE FUNCIONES DE SESIÓN CONTINUA ==========
 
   /**
    * Reprocesa grabaciones existentes que no tienen análisis
@@ -691,28 +718,26 @@ export default function Home() {
       audioChunksRef.current = [];
       startTimeRef.current = Date.now();
 
-      // Inicializar variables de sesión y chunking
+      // Inicializar variables de sesión
       const now = Date.now();
       setSessionStartTime(now);
-      setChunkStartTime(now);
-      setCurrentChunkNumber(1);
       setLastVoiceActivity(now);
       setIsListening(false);
+      setLastCheckpointTime(0);
 
-      // Inicializar refs también
+      // Inicializar refs
       sessionStartTimeRef.current = now;
-      chunkStartTimeRef.current = now;
-      currentChunkNumberRef.current = 1;
       lastVoiceActivityRef.current = now;
       isListeningRef.current = false;
       isRecordingRef.current = true;
       finalTranscriptsRef.current = [];
+      lastCheckpointTranscriptLengthRef.current = 0;
 
-      console.log('Iniciando nueva sesión de grabación:', { sessionId: now });
+      console.log('Iniciando nueva sesión de grabación continua:', { sessionId: now });
 
       // Obtener stream de audio
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream; // Guardar referencia al stream
+      streamRef.current = stream;
 
       // Configurar detección de voz
       setupVoiceDetection(stream);
@@ -736,18 +761,18 @@ export default function Home() {
         }
       };
 
-      mediaRecorderRef.current.start(1000); // Chunk cada segundo
+      mediaRecorderRef.current.start(1000);
 
       // Timer de UI
       timerRef.current = setInterval(() => {
         setRecordingTime(d => d + 1);
       }, 1000);
 
-      // Timer de auto-chunk (15 minutos)
-      chunkTimerRef.current = setTimeout(onChunkTimerExpired, CHUNK_DURATION_MS);
+      // Iniciar checkpoints silenciosos (cada 5 min)
+      startCheckpointTimer();
 
       setIsRecording(true);
-      console.log('Grabación iniciada exitosamente con auto-chunking habilitado');
+      console.log('Grabación continua iniciada exitosamente');
     } catch (err) {
       console.error('Error iniciando grabación:', err);
       setError(err instanceof Error ? err.message : 'Failed to start recording');
@@ -759,6 +784,8 @@ export default function Home() {
     setIsRecording(false);
     setIsListening(false);
     setIsProcessing(true);
+    isRecordingRef.current = false;
+    isListeningRef.current = false;
 
     // Limpiar TODOS los timers
     if (timerRef.current) {
@@ -766,9 +793,9 @@ export default function Home() {
       timerRef.current = null;
     }
     
-    if (chunkTimerRef.current) {
-      clearTimeout(chunkTimerRef.current);
-      chunkTimerRef.current = null;
+    if (checkpointTimerRef.current) {
+      clearInterval(checkpointTimerRef.current);
+      checkpointTimerRef.current = null;
     }
     
     if (voiceDetectionTimerRef.current) {
@@ -812,34 +839,11 @@ export default function Home() {
     // Esperar a que termine de procesar
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Guardar último chunk si hay contenido
+    // Guardar la conversación completa
     try {
-      const fullTranscript = finalTranscripts.map(s => s.text).join(' ');
-      
-      if (fullTranscript || audioChunksRef.current.length > 0) {
-        const audioBlob = audioChunksRef.current.length > 0 
-          ? new Blob(audioChunksRef.current, { type: 'audio/webm' })
-          : undefined;
-        
-        const chunkDuration = Math.floor((Date.now() - chunkStartTime) / 1000);
-        
-        await saveRecording(
-          fullTranscript || '(sin transcripción)',
-          audioBlob,
-          chunkDuration,
-          {
-            chunkNumber: currentChunkNumber,
-            sessionId: sessionStartTime,
-            chunkStartTime: chunkStartTime,
-            chunkEndTime: Date.now(),
-            isAutoSaved: false, // Este es guardado manualmente al detener
-          }
-        );
-        
-        console.log('Último chunk guardado exitosamente');
-      }
+      await saveConversation('manual_stop');
     } catch (err) {
-      console.error('Error saving final chunk:', err);
+      console.error('Error saving conversation on stop:', err);
       setError('Failed to save recording');
     }
     
@@ -847,17 +851,15 @@ export default function Home() {
     setRecordingTime(0);
     
     // Resetear estados de sesión
-    setCurrentChunkNumber(1);
     setSessionStartTime(0);
-    setChunkStartTime(0);
+    setLastCheckpointTime(0);
 
-    // Resetear refs también
-    currentChunkNumberRef.current = 1;
+    // Resetear refs
     sessionStartTimeRef.current = 0;
-    chunkStartTimeRef.current = 0;
     isRecordingRef.current = false;
     isListeningRef.current = false;
     finalTranscriptsRef.current = [];
+    lastCheckpointTranscriptLengthRef.current = 0;
 
     console.log('Grabación detenida completamente');
   };
@@ -1385,12 +1387,12 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-3 p-2">
                     <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    <span className="text-gray-300 flex-1">Auto-chunking (15 min)</span>
+                    <span className="text-gray-300 flex-1">Continuous Session Recording</span>
                     <span className="text-xs text-green-400">Completo</span>
                   </div>
                   <div className="flex items-center gap-3 p-2">
                     <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    <span className="text-gray-300 flex-1">Voice Activity Detection</span>
+                    <span className="text-gray-300 flex-1">Smart Conversation Detection (2min silence)</span>
                     <span className="text-xs text-green-400">Completo</span>
                   </div>
                   <Link href="/analisis" className="flex items-center gap-3 p-2 hover:bg-white/5 rounded transition-colors cursor-pointer">
@@ -1620,12 +1622,12 @@ export default function Home() {
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                 <div className="p-2 bg-white/5 rounded">
-                  <div className="text-gray-500">Chunk Duration</div>
-                  <div className="text-white font-mono">15 min</div>
+                  <div className="text-gray-500">Checkpoint Interval</div>
+                  <div className="text-white font-mono">5 min</div>
                 </div>
                 <div className="p-2 bg-white/5 rounded">
-                  <div className="text-gray-500">Silence Threshold</div>
-                  <div className="text-white font-mono">30 sec</div>
+                  <div className="text-gray-500">Conversation End</div>
+                  <div className="text-white font-mono">2 min silence</div>
                 </div>
                 <div className="p-2 bg-white/5 rounded">
                   <div className="text-gray-500">Voice Threshold</div>
@@ -1689,17 +1691,9 @@ export default function Home() {
                     <span className="text-red-500 font-mono font-medium">{formatTime(recordingTime)}</span>
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    Chunk {currentChunkNumber} • Next save in {Math.floor((CHUNK_DURATION_MS - (Date.now() - chunkStartTime)) / 60000)}min
+                    Continuous recording {lastCheckpointTime > 0 ? `• Last backup ${Math.floor((Date.now() - lastCheckpointTime) / 60000)}m ago` : ''}
                   </div>
                 </div>
-                
-                <button
-                  onClick={() => saveCurrentChunk()}
-                  className="text-xs text-blue-500 hover:text-blue-400 hover:underline px-2 py-1 rounded transition-colors"
-                  title="Guardar chunk actual manualmente"
-                >
-                  💾 Force Save
-                </button>
                 
                 <button
                   onClick={stopRecording}
@@ -2330,24 +2324,28 @@ export default function Home() {
               </span>
             </div>
             
-            {/* Información de chunking activo */}
+            {/* Información de sesión activa */}
             {(isRecording || isListening) && (
               <>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Current Chunk</span>
-                  <span className="text-gray-300">#{currentChunkNumber}</span>
-                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Session Started</span>
                   <span className="text-gray-300 text-xs">
                     {formatDateShort(sessionStartTime)}
                   </span>
                 </div>
+                {isRecording && lastCheckpointTime > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Last Backup</span>
+                    <span className="text-gray-300">
+                      {Math.floor((Date.now() - lastCheckpointTime) / 60000)}m ago
+                    </span>
+                  </div>
+                )}
                 {isRecording && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Next Auto-Save</span>
+                    <span className="text-gray-500">Silence Ends At</span>
                     <span className="text-gray-300">
-                      {Math.max(0, Math.floor((CHUNK_DURATION_MS - (Date.now() - chunkStartTime)) / 60000))}m
+                      {Math.floor(CONVERSATION_END_SILENCE_MS / 60000)}m of silence
                     </span>
                   </div>
                 )}

@@ -189,7 +189,7 @@ async function consolidateConversation(chunks: ChunkData[]): Promise<string | nu
 
   if (!fullTranscript || fullTranscript.length < 50) {
         console.log(`[consolidateConversation] Skipping - insufficient transcript`);
-        await markChunksAsConsolidated(chunks.map(c => c.id), null);
+        await markChunksAsConsolidated(chunks.map(c => c.id), null, userId);
         return null;
   }
 
@@ -236,19 +236,26 @@ async function consolidateConversation(chunks: ChunkData[]): Promise<string | nu
 
   console.log(`[consolidateConversation] Created conversation ${conversationRef.id} from ${chunks.length} chunks`);
 
-  await markChunksAsConsolidated(chunks.map(c => c.id), conversationRef.id);
+  await markChunksAsConsolidated(chunks.map(c => c.id), conversationRef.id, userId);
 
   return conversationRef.id;
 }
 
 /**
  * Marca chunks como consolidados
+ * Fixed: Uses user-scoped path users/{userId}/recordings/{chunkId}
  */
-async function markChunksAsConsolidated(chunkIds: string[], conversationId: string | null): Promise<void> {
+async function markChunksAsConsolidated(
+    chunkIds: string[], 
+    conversationId: string | null,
+    userId: string
+  ): Promise<void> {
     const batch = getDb().batch();
 
   for (const chunkId of chunkIds) {
-        const chunkRef = getDb().collection('recordings').doc(chunkId);
+        const chunkRef = getDb()
+          .collection('users').doc(userId)
+          .collection('recordings').doc(chunkId);
         batch.update(chunkRef, {
                 consolidated: true,
                 consolidatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -277,60 +284,61 @@ export const consolidateSessions = functions
              console.log('[consolidateSessions] Starting consolidation check...');
 
              try {
-                     const pendingChunks = await getDb()
-                       .collection('recordings')
-                       .where('consolidated', '==', false)
-                       .where('status', '==', 'processed')
-                       .get();
+                     // Get all users who have recordings
+                     const usersSnapshot = await getDb().collection('users').get();
+                     
+                     let totalConsolidated = 0;
 
-          if (pendingChunks.empty) {
-                    console.log('[consolidateSessions] No pending chunks to consolidate');
-                    return null;
-          }
+                     for (const userDoc of usersSnapshot.docs) {
+                       const userId = userDoc.id;
+                       const pendingChunks = await getDb()
+                         .collection('users').doc(userId)
+                         .collection('recordings')
+                         .where('consolidated', '==', false)
+                         .where('status', '==', 'processed')
+                         .get();
 
-          const sessionGroups = new Map<string, ChunkData[]>();
+                       if (pendingChunks.empty) continue;
 
-          pendingChunks.docs.forEach(doc => {
-                    const data = doc.data() as ChunkData;
-                    data.id = doc.id;
+                       const sessionGroups = new Map<string, ChunkData[]>();
 
-                                             const sessionId = data.sessionId || doc.id;
+                       pendingChunks.docs.forEach(doc => {
+                         const data = doc.data() as ChunkData;
+                         data.id = doc.id;
+                         data.userId = userId;
 
-                                             if (!sessionGroups.has(sessionId)) {
-                                                         sessionGroups.set(sessionId, []);
-                                             }
-                    sessionGroups.get(sessionId)!.push(data);
-          });
+                         const sessionId = data.sessionId || doc.id;
 
-          console.log(`[consolidateSessions] Found ${sessionGroups.size} sessions to check`);
+                         if (!sessionGroups.has(sessionId)) {
+                           sessionGroups.set(sessionId, []);
+                         }
+                         sessionGroups.get(sessionId)!.push(data);
+                       });
 
-          let consolidatedCount = 0;
+                       for (const [sessionId, chunks] of sessionGroups) {
+                         const latestChunk = chunks.reduce((latest, chunk) => {
+                           const chunkTime = chunk.createdAt?.toMillis() || 0;
+                           const latestTime = latest.createdAt?.toMillis() || 0;
+                           return chunkTime > latestTime ? chunk : latest;
+                         }, chunks[0]);
 
-          for (const [sessionId, chunks] of sessionGroups) {
-                    const latestChunk = chunks.reduce((latest, chunk) => {
-                                const chunkTime = chunk.createdAt?.toMillis() || 0;
-                                const latestTime = latest.createdAt?.toMillis() || 0;
-                                return chunkTime > latestTime ? chunk : latest;
-                    }, chunks[0]);
+                         const latestTime = latestChunk.createdAt?.toMillis() || 0;
 
-                       const latestTime = latestChunk.createdAt?.toMillis() || 0;
+                         if (latestTime > cutoffTime) {
+                           console.log(`[consolidateSessions] Session ${sessionId} still active, skipping`);
+                           continue;
+                         }
 
-                       if (latestTime > cutoffTime) {
-                                   console.log(`[consolidateSessions] Session ${sessionId} still active, skipping`);
-                                   continue;
+                         const conversations = groupChunksIntoConversations(chunks);
+
+                         for (const conversationChunks of conversations) {
+                           await consolidateConversation(conversationChunks);
+                           totalConsolidated++;
+                         }
                        }
+                     }
 
-                       const conversations = groupChunksIntoConversations(chunks);
-
-                       console.log(`[consolidateSessions] Session ${sessionId}: ${chunks.length} chunks -> ${conversations.length} conversations`);
-
-                       for (const conversationChunks of conversations) {
-                                   await consolidateConversation(conversationChunks);
-                                   consolidatedCount++;
-                       }
-          }
-
-          console.log(`[consolidateSessions] Consolidated ${consolidatedCount} conversations`);
+                     console.log(`[consolidateSessions] Consolidated ${totalConsolidated} conversations`);
                      return null;
 
              } catch (error) {
@@ -362,9 +370,9 @@ export const forceConsolidateSession = functions
 
                     try {
                             const chunksSnapshot = await getDb()
+                              .collection('users').doc(userId)
                               .collection('recordings')
                               .where('sessionId', '==', sessionId)
-                              .where('userId', '==', userId)
                               .get();
 
           if (chunksSnapshot.empty) {
@@ -374,6 +382,7 @@ export const forceConsolidateSession = functions
           const chunks: ChunkData[] = chunksSnapshot.docs.map(doc => ({
                     ...doc.data() as ChunkData,
                     id: doc.id,
+                    userId,
           }));
 
           const conversations = groupChunksIntoConversations(chunks);
@@ -466,8 +475,8 @@ export const consolidateAllPending = functions
 
                     try {
                             const pendingChunks = await getDb()
+                              .collection('users').doc(userId)
                               .collection('recordings')
-                              .where('userId', '==', userId)
                               .where('consolidated', '==', false)
                               .where('status', '==', 'processed')
                               .get();
@@ -481,6 +490,7 @@ export const consolidateAllPending = functions
           pendingChunks.docs.forEach(doc => {
                     const docData = doc.data() as ChunkData;
                     docData.id = doc.id;
+                    docData.userId = userId;
 
                                              const sessionId = docData.sessionId || doc.id;
 
