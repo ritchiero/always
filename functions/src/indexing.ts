@@ -6,10 +6,18 @@ import OpenAI from 'openai';
 // Lazy init to avoid Firebase Admin initialization errors
 function getDb() { return admin.firestore(); }
 
-// Initialize Pinecone
-const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY!,
-});
+// Lazy Initialize Pinecone
+let pineconeClient: Pinecone | null = null;
+function getPinecone(): Pinecone {
+  if (!pineconeClient) {
+    const apiKey = process.env.PINECONE_API_KEY;
+    if (!apiKey) {
+      throw new Error('PINECONE_API_KEY not configured');
+    }
+    pineconeClient = new Pinecone({ apiKey });
+  }
+  return pineconeClient;
+}
 
 // Initialize OpenAI
 let openaiClient: OpenAI | null = null;
@@ -50,7 +58,7 @@ export const indexAllRecordings = functions
 
     try {
       const openai = getOpenAI();
-      const index = pinecone.index('always-transcripts');
+      const index = getPinecone().index('always-transcripts');
 
       // Get all recordings for this user
       const recordingsRef = getDb()
@@ -188,7 +196,7 @@ export const indexRecording = async (
 ): Promise<void> => {
   try {
     const openai = getOpenAI();
-    const index = pinecone.index('always-transcripts');
+    const index = getPinecone().index('always-transcripts');
 
     // Generate embedding
     const embeddingResponse = await openai.embeddings.create({
