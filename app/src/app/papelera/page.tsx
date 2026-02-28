@@ -30,7 +30,7 @@ export default function PapeleraPage() {
     if (!deletedAt) return 30;
     const deleted = deletedAt.toDate();
     const now = new Date();
-    const daysPassed = Math.floor((now.getTime() - deleted.getTime()) / (1000 * 60 * 60 * 24));
+    const daysPassed = Math.ceil((now.getTime() - deleted.getTime()) / (1000 * 60 * 60 * 24));
     return Math.max(0, 30 - daysPassed);
   };
 
