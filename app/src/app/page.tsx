@@ -1099,7 +1099,7 @@ export default function Home() {
 
       {/* Secondary Sidebar - Recordings (hidden in dev view) */}
       {activeNav !== 'dev' && (
-      <div className="w-64 bg-black border-r border-white/10 flex flex-col">
+      <div className={"w-64 bg-black border-r border-white/10 flex flex-col" + (activeNav === 'home' && !selectedRecording ? " hidden" : "")}>
         <div className="p-4 border-b border-white/10">
           <h2 className="text-sm font-medium text-gray-400">
             {selectedDate ? 'Grabaciones Filtradas' : "Grabaciones de Hoy"}
@@ -1307,7 +1307,111 @@ export default function Home() {
       )}
 
       {/* Semantic Search View */}
-      {activeNav === 'search' ? (
+      {activeNav === 'home' && !selectedRecording ? (
+        <div className="flex-1 overflow-y-auto p-8">
+          {/* Hero Greeting */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">
+              {new Date().getHours() < 12 ? 'Buenos d\u00edas' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches'}, {user?.displayName || user?.email?.split('@')[0] || 'Usuario'}
+            </h1>
+            <p className="text-gray-400 text-lg">
+              {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 rounded-2xl p-6">
+              <div className="text-3xl font-bold text-blue-400">{recordings.length}</div>
+              <div className="text-sm text-blue-300/70 mt-1">Grabaciones totales</div>
+            </div>
+            <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30 rounded-2xl p-6">
+              <div className="text-3xl font-bold text-orange-400">{recordings.filter(r => { const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.createdAt); return d.toDateString() === new Date().toDateString(); }).length}</div>
+              <div className="text-sm text-orange-300/70 mt-1">Grabaciones de hoy</div>
+            </div>
+            <div className="bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30 rounded-2xl p-6">
+              <div className="text-3xl font-bold text-green-400">{Math.round(recordings.reduce((acc, r) => acc + (r.duration || 0), 0) / 60)}</div>
+              <div className="text-sm text-green-300/70 mt-1">Minutos grabados</div>
+            </div>
+          </div>
+
+          {/* Quick Actions Grid */}
+          <h2 className="text-lg font-semibold text-white mb-4">Acciones R\u00e1pidas</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <button onClick={() => { if (!isRecording && !isProcessing) { /* trigger recording */ } }} className="group bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 rounded-2xl p-6 text-left transition-all duration-300">
+              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center mb-4 group-hover:bg-red-500/30 transition-colors">
+                <svg className="w-6 h-6 text-red-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+              </div>
+              <h3 className="font-semibold text-white mb-1">Grabar</h3>
+              <p className="text-sm text-gray-400">Inicia una nueva grabaci\u00f3n de audio</p>
+            </button>
+
+            <button onClick={() => setActiveNav('search')} className="group bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-500/40 rounded-2xl p-6 text-left transition-all duration-300">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4 group-hover:bg-purple-500/30 transition-colors">
+                <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
+              <h3 className="font-semibold text-white mb-1">Buscar</h3>
+              <p className="text-sm text-gray-400">Busca en tus conversaciones con IA</p>
+            </button>
+
+            <Link href="/actions/" className="group bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/40 rounded-2xl p-6 text-left transition-all duration-300 block">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center mb-4 group-hover:bg-orange-500/30 transition-colors">
+                <svg className="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              </div>
+              <h3 className="font-semibold text-white mb-1">Acciones</h3>
+              <p className="text-sm text-gray-400">Revisa tareas detectadas en tus conversaciones</p>
+            </Link>
+
+            <Link href="/daily/" className="group bg-white/5 hover:bg-blue-500/20 border border-white/10 hover:border-blue-500/40 rounded-2xl p-6 text-left transition-all duration-300 block">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4 group-hover:bg-blue-500/30 transition-colors">
+                <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+              </div>
+              <h3 className="font-semibold text-white mb-1">Resumen del D\u00eda</h3>
+              <p className="text-sm text-gray-400">Genera un resumen de tu actividad diaria</p>
+            </Link>
+
+            <button onClick={() => setActiveNav('calendar')} className="group bg-white/5 hover:bg-teal-500/20 border border-white/10 hover:border-teal-500/40 rounded-2xl p-6 text-left transition-all duration-300">
+              <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center mb-4 group-hover:bg-teal-500/30 transition-colors">
+                <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              </div>
+              <h3 className="font-semibold text-white mb-1">Calendario</h3>
+              <p className="text-sm text-gray-400">Visualiza tus grabaciones por fecha</p>
+            </button>
+
+            <Link href="/integrations/" className="group bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 rounded-2xl p-6 text-left transition-all duration-300 block">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4 group-hover:bg-emerald-500/30 transition-colors">
+                <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              </div>
+              <h3 className="font-semibold text-white mb-1">Integraciones</h3>
+              <p className="text-sm text-gray-400">Conecta con Manus AI y otras herramientas</p>
+            </Link>
+          </div>
+
+          {/* Recent Recordings */}
+          {recordings.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-white mb-4">Grabaciones Recientes</h2>
+              <div className="space-y-2">
+                {recordings.slice(0, 5).map((recording: any) => (
+                  <button key={recording.id} onClick={() => { setSelectedRecording(recording); }} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 text-left transition-all duration-200 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/></svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-white truncate">{recording.name || recording.title || 'Grabaci\u00f3n'}</div>
+                      <div className="text-xs text-gray-500">{recording.createdAt?.toDate ? recording.createdAt.toDate().toLocaleString('es-MX') : ''} {recording.duration ? ' - ' + Math.round(recording.duration / 60) + ' min' : ''}</div>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                ))}
+              </div>
+              {recordings.length > 5 && (
+                <p className="text-center text-sm text-gray-500 mt-3">y {recordings.length - 5} grabaciones m\u00e1s en la lista lateral</p>
+              )}
+            </div>
+          )}
+        </div>
+      ) : activeNav === 'search' ? (
         <SemanticSearch onSelectRecording={(id) => {
           const recording = recordings.find(r => r.id === id);
           if (recording) {
@@ -1645,7 +1749,7 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header with Recording Controls */}
-        <div className="h-14 border-b border-white/10 flex items-center px-4 gap-4">
+        <div className={"h-14 border-b border-white/10 flex items-center px-4 gap-4" + (activeNav === 'home' && !selectedRecording ? " hidden" : "")}>
           <div className="flex gap-1">
             {tabs.map((tab) => (
               <button
@@ -2257,7 +2361,7 @@ export default function Home() {
       </div>
 
       {/* Right Panel */}
-      <div className="w-80 bg-black border-l border-white/10 flex flex-col">
+      <div className={"w-80 bg-black border-l border-white/10 flex flex-col" + (activeNav === 'home' && !selectedRecording ? " hidden" : "")}>
         {/* Summary Section */}
         <div className="p-4 border-b border-white/10">
           <h3 className="text-sm font-medium text-gray-400 mb-3">RESUMEN</h3>
