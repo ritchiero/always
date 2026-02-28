@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { db } from '@/lib/firebase';
+import { db, functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 
@@ -26,6 +27,7 @@ interface ActionItem {
   completedAt: any;
   manusTaskId: string | null;
   manusStatus: string | null;
+  manusTaskUrl?: string;
 }
 
 type FilterStatus = 'all' | 'pending' | 'in_progress' | 'completed' | 'dismissed';
@@ -40,6 +42,8 @@ export default function ActionsPage() {
   const [filterPriority, setFilterPriority] = useState<FilterPriority>('all');
   const [filterCategory, setFilterCategory] = useState<FilterCategory>('all');
   const [sortBy, setSortBy] = useState<'date' | 'priority'>('date');
+  const [manusConnected, setManusConnected] = useState(false);
+  const [executingActions, setExecutingActions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -62,6 +66,22 @@ export default function ActionsPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // Check Manus connection status
+  useEffect(() => {
+    if (!user) return;
+    const checkManus = async () => {
+      try {
+        const getManusStatus = httpsCallable(functions, 'getManusStatus');
+        const result = await getManusStatus({});
+        const data = result.data as { isConnected: boolean };
+        setManusConnected(data.isConnected);
+      } catch {
+        setManusConnected(false);
+      }
+    };
+    checkManus();
+  }, [user]);
+
   const updateActionStatus = useCallback(async (actionId: string, newStatus: ActionItem['status']) => {
     if (!user) return;
     try {
@@ -73,6 +93,28 @@ export default function ActionsPage() {
       });
     } catch (error) {
       console.error('Error updating action:', error);
+    }
+  }, [user]);
+
+  const handleExecuteWithManus = useCallback(async (actionId: string) => {
+    if (!user) return;
+    setExecutingActions((prev) => new Set(prev).add(actionId));
+    try {
+      const executeFn = httpsCallable(functions, 'executeWithManus');
+      const result = await executeFn({ actionId });
+      const data = result.data as { success: boolean; taskUrl: string; message: string };
+      if (data.taskUrl) {
+        window.open(data.taskUrl, '_blank');
+      }
+    } catch (error: any) {
+      console.error('Error executing with Manus:', error);
+      alert(error?.message || 'Error al ejecutar con Manus');
+    } finally {
+      setExecutingActions((prev) => {
+        const next = new Set(prev);
+        next.delete(actionId);
+        return next;
+      });
     }
   }, [user]);
 
@@ -355,10 +397,31 @@ export default function ActionsPage() {
                           </svg>
                         </button>
                       )}
+                      {manusConnected && action.status === 'pending' && !action.manusTaskId && (
+                        <button
+                          onClick={() => handleExecuteWithManus(action.id)}
+                          disabled={executingActions.has(action.id)}
+                          className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors text-purple-400 disabled:opacity-50"
+                          title="Ejecutar con Manus"
+                        >
+                          {executingActions.has(action.id) ? (
+                            <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
                       {action.manusTaskId && (
-                        <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full ml-2">
-                          🤖 Manus
-                        </span>
+                        <a
+                          href={action.manusTaskUrl || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full ml-2 hover:bg-purple-500/30 transition-colors"
+                        >
+                          🤖 Manus {action.manusStatus === 'completed' ? '✅' : '🔄'}
+                        </a>
                       )}
                     </div>
                   </div>
