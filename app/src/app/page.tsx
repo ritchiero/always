@@ -14,6 +14,7 @@ import { ActionConfirmationModal } from '@/components/ActionConfirmationModal';
 import { RecordingControl } from '@/components/RecordingControl';
 import { CalendarView } from '@/components/CalendarView';
 import { AlwaysLogoFull, AlwaysLogo } from '@/components/AlwaysLogo';
+import { ActionsWidget } from '@/components/ActionsWidget';
 
 // Icon components
 const HomeIcon = () => (
@@ -2680,6 +2681,10 @@ export default function Home() {
         isMobile={true}
       />
     </main>
-    </ProtectedRoute>
+    
+          {/* Floating Actions Widget */}
+          <ActionsWidget />
+
+          </ProtectedRoute>
   );
 }
