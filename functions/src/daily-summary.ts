@@ -242,7 +242,7 @@ IMPORTANTE:
       }
 
       const openaiResult = await response.json();
-      const summaryText = openaiResult.choices[0].message.content;
+      const summaryText = (openaiResult as any).choices[0].message.content;
 
       // Parse JSON response
       let summary: DailySummary;
