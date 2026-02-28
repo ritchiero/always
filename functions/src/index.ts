@@ -22,6 +22,12 @@ import {
     generateGenericActionDraft,
     regenerateDraftWithFeedback,
 } from './action-helpers';
+import {
+  encryptApiKey,
+  executeActionWithManus,
+  handleManusWebhook,
+  getUserManusSettings,
+} from './manus-integration';
 // Conversation consolidation
 import {
       consolidateSessions,
@@ -770,6 +776,158 @@ export const correlateRecordingsWithEvents = functions
                             throw new functions.https.HttpsError('internal', `Error: ${error instanceof Error ? error.message : String(error)}`);
                     }
   });
+
+// ===========================================
+// MANUS INTEGRATION
+// ===========================================
+
+/**
+ * Save/update user's Manus API key (encrypted)
+ */
+export const saveManusApiKey = functions
+    .region('us-central1')
+    .runWith({ timeoutSeconds: 10, memory: '256MB' })
+    .https.onCall(async (data, context) => {
+        if (!context.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+        }
+        const userId = context.auth.uid;
+        const { apiKey, remove } = data;
+
+        const db = getDb();
+        const integrationRef = db
+            .collection('users').doc(userId)
+            .collection('integrations').doc('manus');
+
+        if (remove) {
+            await integrationRef.set({
+                isActive: false,
+                disconnectedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            return { success: true, message: 'Manus desconectado' };
+        }
+
+        if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
+            throw new functions.https.HttpsError('invalid-argument', 'API key invalida');
+        }
+
+        const encrypted = encryptApiKey(apiKey.trim());
+
+        await integrationRef.set({
+            apiKeyEncrypted: encrypted,
+            isActive: true,
+            connectedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        return { success: true, message: 'Manus conectado exitosamente' };
+    });
+
+/**
+ * Check if user has Manus configured
+ */
+export const getManusStatus = functions
+    .region('us-central1')
+    .runWith({ timeoutSeconds: 10, memory: '256MB' })
+    .https.onCall(async (data, context) => {
+        if (!context.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+        }
+        const userId = context.auth.uid;
+        const settings = await getUserManusSettings(userId);
+
+        return {
+            isConnected: !!settings?.isActive,
+            lastUsedAt: settings?.lastUsedAt || null,
+        };
+    });
+
+/**
+ * Execute an action with Manus
+ */
+export const executeWithManus = functions
+    .region('us-central1')
+    .runWith({ timeoutSeconds: 120, memory: '512MB' })
+    .https.onCall(async (data, context) => {
+        if (!context.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
+        }
+        const userId = context.auth.uid;
+        const { actionId } = data;
+
+        if (!actionId) {
+            throw new functions.https.HttpsError('invalid-argument', 'actionId es requerido');
+        }
+
+        try {
+            // Get the action document
+            const actionDoc = await getDb()
+                .collection('users').doc(userId)
+                .collection('actions').doc(actionId)
+                .get();
+
+            if (!actionDoc.exists) {
+                throw new functions.https.HttpsError('not-found', 'Accion no encontrada');
+            }
+
+            const actionData = actionDoc.data()!;
+
+            const result = await executeActionWithManus(userId, actionId, {
+                task: actionData.task,
+                suggestedAction: actionData.suggestedAction || '',
+                targetService: actionData.targetService || 'other',
+                context: actionData.context || '',
+                assignee: actionData.assignee,
+                deadline: actionData.deadline,
+            });
+
+            return {
+                success: true,
+                taskId: result.taskId,
+                taskUrl: result.taskUrl,
+                message: 'Tarea enviada a Manus exitosamente',
+            };
+        } catch (error) {
+            console.error('Error executing with Manus:', error);
+            if (error instanceof functions.https.HttpsError) throw error;
+            throw new functions.https.HttpsError(
+                'internal',
+                error instanceof Error ? error.message : 'Error al ejecutar con Manus'
+            );
+        }
+    });
+
+/**
+ * Webhook receiver for Manus task status updates
+ */
+export const manusWebhookReceiver = functions
+    .region('us-central1')
+    .runWith({ timeoutSeconds: 30, memory: '256MB' })
+    .https.onRequest(async (req, res) => {
+        if (req.method !== 'POST') {
+            res.status(405).send('Method not allowed');
+            return;
+        }
+
+        try {
+            const payload = req.body;
+
+            if (!payload.task_id || !payload.status) {
+                res.status(400).json({ error: 'Missing task_id or status' });
+                return;
+            }
+
+            await handleManusWebhook({
+                task_id: payload.task_id,
+                status: payload.status,
+                output: payload.output,
+            });
+
+            res.status(200).json({ received: true });
+        } catch (error) {
+            console.error('Webhook error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
 
 // ===========================================
 // EXPORTS
