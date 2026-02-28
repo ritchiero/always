@@ -2222,7 +2222,7 @@ export default function Home() {
                       {/* Sentiment */}
                       {selectedRecording.analysis.sentiment && (
                         <div className="bg-white/5 rounded-lg p-4">
-                          <h4 className="font-medium text-gray-400 mb-2 text-sm">SSentimiento/h4>
+                          <h4 className="font-medium text-gray-400 mb-2 text-sm">Sentimiento</h4>
                           <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
                             selectedRecording.analysis.sentiment === 'positive' ? 'bg-green-500/20 text-green-400' :
                             selectedRecording.analysis.sentiment === 'negative' ? 'bg-red-500/20 text-red-400' :
@@ -2238,7 +2238,7 @@ export default function Home() {
                   {/* Audio Playback */}
                   {selectedRecording.audioUrl && (
                     <div className="bg-white/5 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-400 mb-3 text-sm"Reproducción de Audiok</h4>
+                      <h4 className="font-medium text-gray-400 mb-3 text-sm">Reproducción de Audio</h4>
                       <audio controls className="w-full">
                         <source src={selectedRecording.audioUrl} type="audio/webm" />
                         Your browser does not support the audio element.
