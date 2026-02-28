@@ -943,9 +943,10 @@ export const manusWebhookReceiver = functions
             const payload = req.body;
 
             if (!payload.task_id || !payload.status) {
-                res.status(400).json({ error: 'Missing task_id or status' });
-                return;
-            }
+      // Accept test/ping requests from Manus webhook verification
+      res.status(200).json({ received: true, message: 'Webhook endpoint active' });
+      return;
+    }
 
             await handleManusWebhook({
                 task_id: payload.task_id,
