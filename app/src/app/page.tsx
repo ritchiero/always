@@ -941,13 +941,11 @@ export default function Home() {
 
   const navItems = [
     { id: 'home', icon: HomeIcon, label: 'Home' },
-    { id: 'timeline', icon: TimelineIcon, label: 'Timeline' },
-    { id: 'daily', icon: DailySummaryIcon, label: 'Daily Summary', href: '/daily' },
-    { id: 'calendar', icon: CalendarIcon, label: 'Calendar' },
-    { id: 'tasks', icon: TasksIcon, label: 'Tasks', href: '/actions' },
-    { id: 'search', icon: SearchIcon, label: 'Search' },
-    { id: 'insights', icon: InsightsIcon, label: 'Insights', href: '/integrations' },
-    { id: 'dev', icon: DevIcon, label: 'Product Dev' },
+    { id: 'daily', icon: DailySummaryIcon, label: 'Resumen Diario', href: '/daily' },
+    { id: 'calendar', icon: CalendarIcon, label: 'Calendario' },
+    { id: 'tasks', icon: TasksIcon, label: 'Acciones', href: '/actions' },
+    { id: 'search', icon: SearchIcon, label: 'Buscar' },
+    { id: 'insights', icon: InsightsIcon, label: 'Integraciones', href: '/integrations' },
   ];
 
   const tabs = [
@@ -1104,7 +1102,7 @@ export default function Home() {
       <div className="w-64 bg-black border-r border-white/10 flex flex-col">
         <div className="p-4 border-b border-white/10">
           <h2 className="text-sm font-medium text-gray-400">
-            {selectedDate ? 'Filtered Recordings' : "Today's Recordings"}
+            {selectedDate ? 'Grabaciones Filtradas' : "Grabaciones de Hoy"
           </h2>
           <p className="text-xs text-gray-600 mt-1">
             {selectedDate 
@@ -1361,7 +1359,7 @@ export default function Home() {
                     <span className="text-xs text-green-400">Firebase Storage</span>
                   </div>
                   <div className="flex items-center justify-between p-2 bg-white/5 rounded">
-                    <span className="text-gray-300">Transcription</span>
+                    <span className="text-gray-300">Transcripción</span>
                     <span className="text-xs text-cyan-400">Deepgram (Real-time)</span>
                   </div>
                   <div className="flex items-center justify-between p-2 bg-white/5 rounded">
@@ -1481,7 +1479,7 @@ export default function Home() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="border border-white/10 rounded-lg p-4 text-center">
                 <div className="text-3xl font-bold text-white">{recordings.length}</div>
-                <div className="text-xs text-gray-500 mt-1">Total Recordings</div>
+                <div className="text-xs text-gray-500 mt-1">Total Grabaciones</div>
               </div>
               <div className="border border-white/10 rounded-lg p-4 text-center">
                 <div className="text-3xl font-bold text-green-400">
@@ -1782,7 +1780,7 @@ export default function Home() {
               {/* Selected Recording Transcript */}
               {selectedRecording?.transcript && (
                 <div className="border border-white/10 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-400 mb-3">RECORDING TRANSCRIPT</h3>
+                  <h3 className="text-sm font-medium text-gray-400 mb-3">TRANSCRIPCIÓN</h3>
                   <div className="flex items-start gap-3">
                     <span className="text-xs text-gray-600 mt-1 w-12">
                       {formatDate(selectedRecording.createdAt).split(' ')[1]}
@@ -1802,7 +1800,7 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500">Select a recording to view transcript, or start recording to begin</p>
+                  <p className="text-gray-500">Selecciona una grabación para ver la transcripción, o comienza a grabarn</p>
                 </div>
               )}
             </div>
@@ -1812,7 +1810,7 @@ export default function Home() {
             <div className="max-w-2xl">
               {selectedRecording ? (
                 <div className="space-y-6">
-                  <h3 className="text-lg font-medium mb-4">Recording Summary</h3>
+                  <h3 className="text-lg font-medium mb-4">Resumen de Grabación</h3>
                   
                   {/* Summary */}
                   <div className="bg-white/5 rounded-lg p-4">
@@ -1968,7 +1966,7 @@ export default function Home() {
                       {/* Topics */}
                       {selectedRecording.analysis.topics && selectedRecording.analysis.topics.length > 0 && (
                         <div className="bg-white/5 rounded-lg p-4">
-                          <h4 className="font-medium text-gray-400 mb-2 text-sm">Topics</h4>
+                          <h4 className="font-medium text-gray-400 mb-2 text-sm">Temas</h4>
                           <div className="flex flex-wrap gap-2">
                             {selectedRecording.analysis.topics.map((topic: string, idx: number) => (
                               <span key={idx} className="px-3 py-1 rounded bg-blue-500/20 text-blue-400 text-sm">
@@ -2224,7 +2222,7 @@ export default function Home() {
                       {/* Sentiment */}
                       {selectedRecording.analysis.sentiment && (
                         <div className="bg-white/5 rounded-lg p-4">
-                          <h4 className="font-medium text-gray-400 mb-2 text-sm">Sentiment</h4>
+                          <h4 className="font-medium text-gray-400 mb-2 text-sm">SSentimiento/h4>
                           <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
                             selectedRecording.analysis.sentiment === 'positive' ? 'bg-green-500/20 text-green-400' :
                             selectedRecording.analysis.sentiment === 'negative' ? 'bg-red-500/20 text-red-400' :
@@ -2240,7 +2238,7 @@ export default function Home() {
                   {/* Audio Playback */}
                   {selectedRecording.audioUrl && (
                     <div className="bg-white/5 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-400 mb-3 text-sm">Audio Playback</h4>
+                      <h4 className="font-medium text-gray-400 mb-3 text-sm"Reproducción de Audiok</h4>
                       <audio controls className="w-full">
                         <source src={selectedRecording.audioUrl} type="audio/webm" />
                         Your browser does not support the audio element.
@@ -2250,7 +2248,7 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">Select a recording to view summary</p>
+                  <p className="text-gray-500">Selecciona una grabación para ver el resumen</p>
                 </div>
               )}
             </div>
@@ -2262,7 +2260,7 @@ export default function Home() {
       <div className="w-80 bg-black border-l border-white/10 flex flex-col">
         {/* Summary Section */}
         <div className="p-4 border-b border-white/10">
-          <h3 className="text-sm font-medium text-gray-400 mb-3">SUMMARY</h3>
+          <h3 className="text-sm font-medium text-gray-400 mb-3">RESUMEN</h3>
           {selectedRecording ? (
             <div className="space-y-3">
               <p className="text-sm text-gray-300">
@@ -2307,7 +2305,7 @@ export default function Home() {
 
         {/* Recording Stats */}
         <div className="p-4 border-b border-white/10">
-          <h3 className="text-sm font-medium text-gray-400 mb-3">STATS</h3>
+          <h3 className="text-sm font-medium text-gray-400 mb-3">ESTADÍSTICAS</h3>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Total Recordings</span>
@@ -2357,7 +2355,7 @@ export default function Home() {
 
         {/* Quick Actions */}
         <div className="flex-1 p-4">
-          <h3 className="text-sm font-medium text-gray-400 mb-3">QUICK ACTIONS</h3>
+          <h3 className="text-sm font-medium text-gray-400 mb-3">ACCIONES RÁPIDAS</h3>
           <div className="space-y-2">
             <button 
               onClick={isRecording ? stopRecording : startRecording}
@@ -2371,18 +2369,27 @@ export default function Home() {
                   isRecording ? 'bg-red-500' : isProcessing ? 'bg-yellow-500' : 'bg-gray-500'
                 }`} />
                 <span className="text-sm">
-                  {isRecording ? 'Stop Recording' : isProcessing ? 'Processing...' : 'Start Recording'}
+                  {isRecording ? 'Detener' : isProcessing ? 'Procesando...' : 'Grabar'}
                 </span>
               </div>
             </button>
             
             {recordings.length > 0 && (
               <>
-                <button className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300">
-                  <span className="text-sm">Search Recordings</span>
+                <button onClick={() => setActiveNav('search')} className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300">
+                  <span className="text-sm">Buscar Grabaciones</span>
                 </button>
+            </button>
 
-                <button
+            <Link href="/actions" className="w-full text-left p-3 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 transition-colors text-orange-300 block">
+              <span className="text-sm">{'⚡'} Ver Acciones</span>
+            </Link>
+
+            <Link href="/daily" className="w-full text-left p-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-colors text-blue-300 block">
+              <span className="text-sm">{'📊'} Resumen del Día</span>
+            </Link>
+
+            <button<button
                   onClick={reprocessRecordings}
                   disabled={isReprocessing}
                   className={`w-full text-left p-3 rounded-lg transition-colors ${
@@ -2393,7 +2400,7 @@ export default function Home() {
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm">
-                      {isReprocessing ? '⏳ Processing...' : '🔄 Reprocess Recordings'}
+                      {isReprocessing ? '⏳ Processing...' : '🔄 Reprocesar Grabaciones'}
                     </span>
                   </div>
                   {reprocessResult && (
@@ -2405,7 +2412,7 @@ export default function Home() {
                         : 'text-gray-500'
                     }`}>
                       {reprocessResult.total === 0 ? (
-                        '✓ No pending recordings'
+                        '✓ Sin grabaciones pendientes'
                       ) : (
                         <>
                           {reprocessResult.failed === 0 && reprocessResult.processed > 0 ? '✓ ' : ''}
