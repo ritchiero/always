@@ -1102,7 +1102,7 @@ export default function Home() {
       <div className="w-64 bg-black border-r border-white/10 flex flex-col">
         <div className="p-4 border-b border-white/10">
           <h2 className="text-sm font-medium text-gray-400">
-            {selectedDate ? 'Grabaciones Filtradas' : "Grabaciones de Hoy"
+            {selectedDate ? 'Grabaciones Filtradas' : "Grabaciones de Hoy"}
           </h2>
           <p className="text-xs text-gray-600 mt-1">
             {selectedDate 
@@ -1800,7 +1800,7 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500">Selecciona una grabación para ver la transcripción, o comienza a grabarn</p>
+                  <p className="text-gray-500">Selecciona una grabación para ver la transcripción, o comienza a grabar</p>
                 </div>
               )}
             </div>
@@ -2299,7 +2299,7 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">Select a recording to view summary</p>
+            <p className="text-sm text-gray-500">Selecciona una grabación para ver el resumen</p>
           )}
         </div>
 
