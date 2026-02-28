@@ -351,7 +351,7 @@ export const processRecording = functions
                                                   2. summary: Resumen breve (1-2 oraciones)
                                                   3. participants: Lista de nombres de personas mencionadas
                                                   4. topics: Temas principales (máximo 5)
-                                                  5. actionItems: Tareas con formato [{"task":"","assignee":"","deadline":"","status":"pending"}]
+                                                  5. actionItems: Tareas/acciones detectadas con formato enriquecido [{"task":"descripción de la tarea","assignee":"responsable","deadline":"fecha si se menciona","status":"pending","suggestedAction":"qué hacer concretamente (ej: enviar email, agendar reunión, crear documento)","targetService":"servicio sugerido (email, calendar, document, task, browser, other)","category":"tipo (followup, task, decision, reminder, research)","priority":"high/medium/low basado en urgencia detectada","context":"contexto breve de por qué surge esta acción"}]
                                                   6. sentiment: Tono general (positive, neutral, negative)
                                                   7. isGarbage: true si no tiene contenido útil
                                                   8. garbageReason: Si isGarbage es true, explicar por qué
@@ -362,7 +362,7 @@ export const processRecording = functions
                                     }
                                             ],
                                   temperature: 0.3,
-                                  max_tokens: 500,
+                                  max_tokens: 1000,
                         });
 
           const responseText = completion.choices[0]?.message?.content || '{}';
@@ -397,6 +397,46 @@ export const processRecording = functions
                     status: 'processed',
                       consolidated: false,  // Mark as pending consolidation
           });
+
+          // === FASE 1a: Create independent action documents ===
+          const actionItems = analysis.actionItems || [];
+          if (actionItems.length > 0) {
+              const actionsCollection = getDb()
+                  .collection('users').doc(userId)
+                  .collection('actions');
+              
+              const batch = getDb().batch();
+              
+              for (const item of actionItems) {
+                  const actionRef = actionsCollection.doc();
+                  batch.set(actionRef, {
+                      task: item.task || '',
+                      assignee: item.assignee || '',
+                      deadline: item.deadline || '',
+                      status: item.status || 'pending',
+                      suggestedAction: item.suggestedAction || '',
+                      targetService: item.targetService || 'other',
+                      category: item.category || 'task',
+                      priority: item.priority || 'medium',
+                      context: item.context || '',
+                      sourceRecordingId: recordingId,
+                      sourceSessionId: data.sessionId || '',
+                      userId: userId,
+                      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                      completedAt: null,
+                      manusTaskId: null,
+                      manusStatus: null,
+                  });
+              }
+              
+              try {
+                  await batch.commit();
+                  console.log(`Created ${actionItems.length} action documents for user ${userId}`);
+              } catch (actionError) {
+                  console.error('Error creating action documents:', actionError);
+              }
+          }
 
           // Index in Pinecone
           try {
