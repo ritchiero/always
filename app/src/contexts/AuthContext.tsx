@@ -11,8 +11,11 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 
-// Email autorizado para acceso
-const AUTHORIZED_EMAIL = 'ricardo.rodriguez@getlawgic.com';
+// Emails autorizados para acceso
+const AUTHORIZED_EMAILS: string[] = [
+    'ricardo.rodriguez@getlawgic.com',
+    'ribarra@lawgic.com.mx',
+  ];
 
 interface AuthContextType {
   user: User | null;
@@ -35,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verificar si el email está autorizado
   const checkAuthorization = (email: string | null): boolean => {
-    return email?.toLowerCase() === AUTHORIZED_EMAIL.toLowerCase();
+    if (!email) return false; return AUTHORIZED_EMAILS.some(e => e.toLowerCase() === email.toLowerCase());
   };
 
   // Escuchar cambios en el estado de autenticación
