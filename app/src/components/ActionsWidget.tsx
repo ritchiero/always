@@ -18,6 +18,32 @@ interface ActionItem {
   createdAt: any;
 }
 
+const CAT_ICONS: Record<string, string> = {
+  followup: '📞',
+  task: '✅',
+  decision: '🎯',
+  reminder: '⏰',
+  research: '🔍',
+};
+
+const PRIO_COLORS: Record<string, string> = {
+  high: 'border-red-500/40 bg-red-500/5',
+  medium: 'border-amber-500/30 bg-amber-500/5',
+  low: 'border-emerald-500/20 bg-emerald-500/5',
+};
+
+const PRIO_BADGE: Record<string, string> = {
+  high: 'bg-red-500/20 text-red-400',
+  medium: 'bg-amber-500/20 text-amber-400',
+  low: 'bg-emerald-500/20 text-emerald-400',
+};
+
+const PRIO_LABEL: Record<string, string> = {
+  high: 'Urgente',
+  medium: 'Media',
+  low: 'Baja',
+};
+
 export function ActionsWidget() {
   const { user } = useAuth();
   const [actions, setActions] = useState<ActionItem[]>([]);
@@ -27,10 +53,7 @@ export function ActionsWidget() {
   useEffect(() => {
     if (!user) return;
     const actionsRef = collection(db, 'users', user.uid, 'actions');
-    const q = query(
-      actionsRef,
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(actionsRef, orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items: ActionItem[] = snapshot.docs.map((d) => ({
         id: d.id,
@@ -47,30 +70,18 @@ export function ActionsWidget() {
 
   if (actions.length === 0) return null;
 
-  const categoryIcons: Record<string, string> = {
-    followup: '\u{1F4DE}',
-    task: '\u{2705}',
-    decision: '\u{1F3AF}',
-    reminder: '\u{23F0}',
-    research: '\u{1F50D}',
-  };
-
-  const priorityColors: Record<string, string> = {
-    high: 'border-red-500/40 bg-red-500/5',
-    medium: 'border-amber-500/30 bg-amber-500/5',
-    low: 'border-emerald-500/20 bg-emerald-500/5',
-  };
+  const count = actions.length;
+  const label = count === 1 ? '1 acción pendiente' : count + ' acciones pendientes';
 
   return (
     <>
-      {/* Floating action button */}
       <div className="fixed bottom-24 right-6 z-50">
         <button
           onClick={() => { setIsOpen(!isOpen); setHasNewActions(false); }}
-          className={`relative group flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-black font-semibold text-sm rounded-2xl shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300`}
+          className="relative group flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-black font-semibold text-sm rounded-2xl shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300"
         >
-          <span className="text-lg">\u{26A1}</span>
-          <span>{actions.length} accion{actions.length !== 1 ? 'es' : ''} pendiente{actions.length !== 1 ? 's' : ''}</span>
+          <span className="text-lg">{'⚡'}</span>
+          <span>{label}</span>
           {hasNewActions && (
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping" />
           )}
@@ -80,10 +91,8 @@ export function ActionsWidget() {
         </button>
       </div>
 
-      {/* Popup panel */}
       {isOpen && (
         <div className="fixed bottom-40 right-6 z-50 w-96 max-h-[60vh] overflow-hidden rounded-2xl bg-gray-950 border border-white/10 shadow-2xl shadow-black/50">
-          {/* Header */}
           <div className="p-4 border-b border-white/5 bg-gradient-to-r from-orange-500/10 to-purple-500/10">
             <div className="flex items-center justify-between">
               <div>
@@ -101,18 +110,15 @@ export function ActionsWidget() {
             </div>
           </div>
 
-          {/* Actions list */}
           <div className="overflow-y-auto max-h-[45vh] p-2 space-y-1.5">
             {actions.map((action) => (
               <div
                 key={action.id}
-                className={`p-3 rounded-xl border transition-all hover:bg-white/[0.03] ${
-                  priorityColors[action.priority] || priorityColors.medium
-                }`}
+                className={'p-3 rounded-xl border transition-all hover:bg-white/[0.03] ' + (PRIO_COLORS[action.priority] || PRIO_COLORS.medium)}
               >
                 <div className="flex items-start gap-2.5">
                   <span className="text-lg flex-shrink-0 mt-0.5">
-                    {categoryIcons[action.category] || '\u{1F4CB}'}
+                    {CAT_ICONS[action.category] || '📋'}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white font-medium leading-snug line-clamp-2">
@@ -125,20 +131,16 @@ export function ActionsWidget() {
                     )}
                     <div className="flex items-center gap-2 mt-1.5">
                       {action.deadline && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        <span className={'text-[10px] px-1.5 py-0.5 rounded ' + (
                           action.deadline.toLowerCase().includes('hoy')
                             ? 'bg-red-500/20 text-red-400'
                             : 'bg-white/5 text-gray-500'
-                        }`}>
-                          \u{1F4C5} {action.deadline}
+                        )}>
+                          {'📅'} {action.deadline}
                         </span>
                       )}
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        action.priority === 'high' ? 'bg-red-500/20 text-red-400' :
-                        action.priority === 'medium' ? 'bg-amber-500/20 text-amber-400' :
-                        'bg-emerald-500/20 text-emerald-400'
-                      }`}>
-                        {action.priority === 'high' ? 'Urgente' : action.priority === 'medium' ? 'Media' : 'Baja'}
+                      <span className={'text-[10px] px-1.5 py-0.5 rounded ' + (PRIO_BADGE[action.priority] || PRIO_BADGE.medium)}>
+                        {PRIO_LABEL[action.priority] || 'Media'}
                       </span>
                     </div>
                   </div>
@@ -147,7 +149,6 @@ export function ActionsWidget() {
             ))}
           </div>
 
-          {/* Footer */}
           <div className="p-3 border-t border-white/5">
             <Link
               href="/actions"
