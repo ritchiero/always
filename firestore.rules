@@ -1,102 +1,110 @@
 rules_version = "2";
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // ==================== HELPER FUNCTIONS ====================
-    
+
     // User is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     // User owns the document (via userId field)
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
     // Document has userId field matching authenticated user
     function belongsToUser() {
-      return isAuthenticated() && 
-             resource.data.userId == request.auth.uid;
+      return isAuthenticated() && resource.data.userId == request.auth.uid;
     }
-    
+
     // Incoming data will have correct userId
     function hasValidUserId() {
-      return isAuthenticated() && 
-             request.resource.data.userId == request.auth.uid;
+      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
-    
+
     // ==================== LEGACY RECORDINGS (ROOT LEVEL) ====================
-    // ⚠️ MIGRATION NOTE: These should be moved to /users/{userId}/recordings
-    
     match /recordings/{recordingId} {
-      // Read: Only if document belongs to user
       allow read: if belongsToUser();
-      
-      // Create: Only if userId is set correctly
       allow create: if hasValidUserId();
-      
-      // Update: Only if user owns it AND doesn't change userId
-      allow update: if belongsToUser() && 
-                       request.resource.data.userId == resource.data.userId;
-      
-      // Delete: Only if user owns it
+      allow update: if belongsToUser() && request.resource.data.userId == resource.data.userId;
       allow delete: if belongsToUser();
     }
-    
-    // ==================== USER-SCOPED COLLECTIONS (RECOMMENDED) ====================
-    
+
+    // ==================== USER-SCOPED COLLECTIONS ====================
     match /users/{userId} {
-      // User can read their own user doc
       allow read: if isOwner(userId);
       allow write: if isOwner(userId);
-      
+
       // User profile
       match /profile/{profileId} {
         allow read, write: if isOwner(userId);
       }
-      
+
       // Recordings (user-scoped)
       match /recordings/{recordingId} {
         allow read, write: if isOwner(userId);
       }
-      
-      // Checkpoints (silent session backups during recording)
+
+      // Checkpoints
       match /checkpoints/{checkpointId} {
         allow read, write: if isOwner(userId);
       }
-      
-      // Conversations (consolidated from recordings)
+
+      // Conversations
       match /conversations/{conversationId} {
-        allow read: if isOwner(userId);
-        // Write only from backend (Cloud Functions run with admin SDK, bypasses rules)
-        // But allow user to update for marking as read, archiving, etc.
-        allow write: if isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
-      
+
       // Daily summaries
       match /dailySummaries/{date} {
         allow read, write: if isOwner(userId);
       }
-      
-      // Calendar tokens & events
+
+      // Calendar
       match /calendar/{calendarId} {
         allow read, write: if isOwner(userId);
       }
-      
-      // Action items
+
+      // Action items (legacy name)
       match /actionItems/{actionId} {
         allow read, write: if isOwner(userId);
       }
-      
+
+      // Actions (Manus-enriched action items)
+      match /actions/{actionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Integrations (Manus, etc.)
+      match /integrations/{integrationId} {
+        allow read: if isOwner(userId);
+        // Write only from Cloud Functions (admin SDK bypasses rules)
+        // Users should not write API keys directly from frontend
+        allow write: if false;
+      }
+
+      // Calendar auth tokens
+      match /calendarAuth/{authId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
       // Settings
       match /settings/{settingId} {
         allow read, write: if isOwner(userId);
       }
     }
-    
-    // ==================== DENY ALL OTHER COLLECTIONS ====================
-    
+
+    // ==================== EXECUTED ACTIONS ====================
+    match /executedActions/{actionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+    }
+
+    // ==================== DENY ALL OTHER ====================
     match /{document=**} {
       allow read, write: if false;
     }
