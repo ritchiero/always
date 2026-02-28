@@ -93,7 +93,7 @@ async function verifyRecordingOwnership(
 export const processAudio = functions.storage
   .object()
   .onFinalize(async (object) => {
-        if (!object.name?.startsWith('audio/')) return;
+        if (!object.name?.startsWith('audio/')) return undefined;
 
                   // Extraer userId del path: audio/{userId}/{filename}
                   const pathParts = object.name.split('/');
