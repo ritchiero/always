@@ -117,7 +117,7 @@ export async function createManusTask(
     throw new Error(`Manus API error (${response.status}): ${errorText}`);
   }
 
-  return response.json();
+  return response.json() as Promise<ManusTaskResponse>;
 }
 
 export async function getManusTaskStatus(
@@ -136,7 +136,7 @@ export async function getManusTaskStatus(
     throw new Error(`Manus API error (${response.status}): ${errorText}`);
   }
 
-  return response.json();
+  return response.json() as Promise<ManusTaskStatus>;
 }
 
 // =========================================
