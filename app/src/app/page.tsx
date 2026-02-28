@@ -1082,7 +1082,7 @@ export default function Home() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveNav(item.id)}
+                onClick={() => { setActiveNav(item.id); if (item.id === 'home') setSelectedRecording(null); }}
                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
                   activeNav === item.id
                     ? 'bg-blue-500/20 text-blue-500'
