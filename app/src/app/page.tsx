@@ -943,9 +943,9 @@ export default function Home() {
     { id: 'timeline', icon: TimelineIcon, label: 'Timeline' },
     { id: 'daily', icon: DailySummaryIcon, label: 'Daily Summary', href: '/daily' },
     { id: 'calendar', icon: CalendarIcon, label: 'Calendar' },
-    { id: 'tasks', icon: TasksIcon, label: 'Tasks' },
+    { id: 'tasks', icon: TasksIcon, label: 'Tasks', href: '/actions' },
     { id: 'search', icon: SearchIcon, label: 'Search' },
-    { id: 'insights', icon: InsightsIcon, label: 'Insights' },
+    { id: 'insights', icon: InsightsIcon, label: 'Insights', href: '/integrations' },
     { id: 'dev', icon: DevIcon, label: 'Product Dev' },
   ];
 
