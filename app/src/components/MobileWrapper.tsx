@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, ReactNode } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import '../styles/mobile-tesla.css';
 
 interface MobileWrapperProps {
@@ -9,6 +11,7 @@ interface MobileWrapperProps {
 
 export function MobileWrapper({ children }: MobileWrapperProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const pathname = usePathname();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -56,45 +59,54 @@ export function MobileWrapper({ children }: MobileWrapperProps) {
 
         <div className="py-4">
           <nav className="space-y-1">
-            <button
+            <Link
+              href="/"
               onClick={closeSidebar}
-              className="w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 border-transparent hover:border-blue-500"
+              className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 ${pathname === '/' ? 'border-orange-500 bg-white/5' : 'border-transparent hover:border-blue-500'}`}
             >
               <span className="text-xl">🏠</span>
               <span className="font-medium">Home</span>
-            </button>
-            
-            <button
+            </Link>
+            <Link
+              href="/actions"
               onClick={closeSidebar}
-              className="w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 border-transparent hover:border-blue-500"
+              className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 ${pathname === '/actions' ? 'border-orange-500 bg-white/5' : 'border-transparent hover:border-blue-500'}`}
             >
-              <span className="text-xl">📝</span>
-              <span className="font-medium">Transcripts</span>
-            </button>
-            
-            <button
+              <span className="text-xl">📋</span>
+              <span className="font-medium">Acciones</span>
+            </Link>
+            <Link
+              href="/daily"
               onClick={closeSidebar}
-              className="w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 border-transparent hover:border-blue-500"
-            >
-              <span className="text-xl">🔍</span>
-              <span className="font-medium">Search</span>
-            </button>
-            
-            <button
-              onClick={closeSidebar}
-              className="w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 border-transparent hover:border-blue-500"
+              className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 ${pathname === '/daily' ? 'border-orange-500 bg-white/5' : 'border-transparent hover:border-blue-500'}`}
             >
               <span className="text-xl">📊</span>
-              <span className="font-medium">Analytics</span>
-            </button>
-            
-            <button
+              <span className="font-medium">Resumen Diario</span>
+            </Link>
+            <Link
+              href="/conversations"
               onClick={closeSidebar}
-              className="w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 border-transparent hover:border-blue-500"
+              className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 ${pathname === '/conversations' ? 'border-orange-500 bg-white/5' : 'border-transparent hover:border-blue-500'}`}
+            >
+              <span className="text-xl">💬</span>
+              <span className="font-medium">Conversaciones</span>
+            </Link>
+            <Link
+              href="/search"
+              onClick={closeSidebar}
+              className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 ${pathname === '/search' ? 'border-orange-500 bg-white/5' : 'border-transparent hover:border-blue-500'}`}
+            >
+              <span className="text-xl">🔍</span>
+              <span className="font-medium">Buscar</span>
+            </Link>
+            <Link
+              href="/profile"
+              onClick={closeSidebar}
+              className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 ${pathname === '/profile' ? 'border-orange-500 bg-white/5' : 'border-transparent hover:border-blue-500'}`}
             >
               <span className="text-xl">⚙️</span>
-              <span className="font-medium">Settings</span>
-            </button>
+              <span className="font-medium">Perfil</span>
+            </Link>
           </nav>
         </div>
       </div>
