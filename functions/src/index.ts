@@ -43,10 +43,41 @@ admin.initializeApp();
 function getDb() { return admin.firestore(); }
 const storage = admin.storage();
 
-// Inicializar clientes - lazy initialization para secrets
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const assemblyai = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY! });
-const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
+// Anthropic - lazy initialization
+let anthropicClient: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!anthropicClient) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error('ANTHROPIC_API_KEY not configured');
+    }
+    anthropicClient = new Anthropic({ apiKey });
+  }
+  return anthropicClient;
+}
+// AssemblyAI - lazy initialization
+let assemblyaiClient: AssemblyAI | null = null;
+function getAssemblyAI(): AssemblyAI {
+  if (!assemblyaiClient) {
+    const apiKey = process.env.ASSEMBLYAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('ASSEMBLYAI_API_KEY not configured');
+    }
+    assemblyaiClient = new AssemblyAI({ apiKey });
+  }
+  return assemblyaiClient;
+}
+let pineconeClient: Pinecone | null = null;
+function getPinecone(): Pinecone {
+  if (!pineconeClient) {
+    const pk = process.env.PINECONE_API_KEY;
+    if (!pk) {
+      throw new Error('PINECONE_API_KEY not configured');
+    }
+    pineconeClient = new Pinecone({ apiKey: pk });
+  }
+  return pineconeClient;
+}
 
 // OpenAI client - lazy initialization
 let openaiClient: OpenAI | null = null;
@@ -111,7 +142,7 @@ export const processAudio = functions.storage
         });
 
                   // Transcribir con AssemblyAI
-                  const transcript = await assemblyai.transcripts.transcribe({
+                  const transcript = await getAssemblyAI().transcripts.transcribe({
                           audio_url: url,
                           speaker_labels: true,
                           language_code: 'es',
@@ -137,7 +168,7 @@ export const processAudio = functions.storage
                           input: transcript.text || '',
                   });
 
-                  const index = pinecone.index('always-transcripts');
+                  const index = getPinecone().index('always-transcripts');
         await index.upsert([{
                 id: docRef.id,
                 values: embedding.data[0].embedding,
@@ -170,7 +201,7 @@ export const generateSummary = functions.https.onCall(async (data, context) => {
                                                         const doc = await verifyRecordingOwnership(userId, recordingId);
     const recording = doc.data();
 
-                                                        const message = await anthropic.messages.create({
+                                                        const message = await getAnthropic().messages.create({
                                                               model: 'claude-sonnet-4-20250514',
                                                               max_tokens: 1024,
                                                               messages: [{
@@ -238,7 +269,7 @@ export const searchTranscripts = functions
                                       input: query.trim(),
                             });
 
-          const index = pinecone.index('always-transcripts');
+          const index = getPinecone().index('always-transcripts');
                             const queryResponse = await index.query({
                                       vector: embedding.data[0].embedding,
                                       topK: 10,
@@ -284,7 +315,7 @@ export const chat = functions.https.onCall(async (data, context) => {
           contextText = doc.data()?.transcript || '';
     }
 
-                                             const response = await anthropic.messages.create({
+                                             const response = await getAnthropic().messages.create({
                                                    model: 'claude-sonnet-4-20250514',
                                                    max_tokens: 1024,
                                                    system: `Eres un asistente que ayuda a analizar grabaciones y reuniones.
