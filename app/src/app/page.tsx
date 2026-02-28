@@ -2379,7 +2379,6 @@ export default function Home() {
                 <button onClick={() => setActiveNav('search')} className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300">
                   <span className="text-sm">Buscar Grabaciones</span>
                 </button>
-            </button>
 
             <Link href="/actions" className="w-full text-left p-3 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 transition-colors text-orange-300 block">
               <span className="text-sm">{'⚡'} Ver Acciones</span>
@@ -2389,7 +2388,7 @@ export default function Home() {
               <span className="text-sm">{'📊'} Resumen del Día</span>
             </Link>
 
-            <button<button
+            <button
                   onClick={reprocessRecordings}
                   disabled={isReprocessing}
                   className={`w-full text-left p-3 rounded-lg transition-colors ${
