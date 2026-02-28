@@ -1312,7 +1312,7 @@ export default function Home() {
           {/* Hero Greeting */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">
-              {new Date().getHours() < 12 ? 'Buenos d\u00edas' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches'}, {user?.displayName || user?.email?.split('@')[0] || 'Usuario'}
+              {new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches'}, {user?.displayName || user?.email?.split('@')[0] || 'Usuario'}
             </h1>
             <p className="text-gray-400 text-lg">
               {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -1336,14 +1336,14 @@ export default function Home() {
           </div>
 
           {/* Quick Actions Grid */}
-          <h2 className="text-lg font-semibold text-white mb-4">Acciones R\u00e1pidas</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">Acciones Rápidas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
             <button onClick={() => { if (!isRecording && !isProcessing) { /* trigger recording */ } }} className="group bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 rounded-2xl p-6 text-left transition-all duration-300">
               <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center mb-4 group-hover:bg-red-500/30 transition-colors">
                 <svg className="w-6 h-6 text-red-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
               </div>
               <h3 className="font-semibold text-white mb-1">Grabar</h3>
-              <p className="text-sm text-gray-400">Inicia una nueva grabaci\u00f3n de audio</p>
+              <p className="text-sm text-gray-400">Inicia una nueva grabación de audio</p>
             </button>
 
             <button onClick={() => setActiveNav('search')} className="group bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-500/40 rounded-2xl p-6 text-left transition-all duration-300">
@@ -1366,7 +1366,7 @@ export default function Home() {
               <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4 group-hover:bg-blue-500/30 transition-colors">
                 <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
               </div>
-              <h3 className="font-semibold text-white mb-1">Resumen del D\u00eda</h3>
+              <h3 className="font-semibold text-white mb-1">Resumen del Día</h3>
               <p className="text-sm text-gray-400">Genera un resumen de tu actividad diaria</p>
             </Link>
 
@@ -1398,7 +1398,7 @@ export default function Home() {
                       <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/></svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-white truncate">{recording.name || recording.title || 'Grabaci\u00f3n'}</div>
+                      <div className="font-medium text-white truncate">{recording.name || recording.title || 'Grabación'}</div>
                       <div className="text-xs text-gray-500">{recording.createdAt?.toDate ? recording.createdAt.toDate().toLocaleString('es-MX') : ''} {recording.duration ? ' - ' + Math.round(recording.duration / 60) + ' min' : ''}</div>
                     </div>
                     <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -1406,7 +1406,7 @@ export default function Home() {
                 ))}
               </div>
               {recordings.length > 5 && (
-                <p className="text-center text-sm text-gray-500 mt-3">y {recordings.length - 5} grabaciones m\u00e1s en la lista lateral</p>
+                <p className="text-center text-sm text-gray-500 mt-3">y {recordings.length - 5} grabaciones más en la lista lateral</p>
               )}
             </div>
           )}
