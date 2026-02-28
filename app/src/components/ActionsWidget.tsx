@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import Link from 'next/link';
 
 interface ActionItem {
@@ -29,19 +29,18 @@ export function ActionsWidget() {
     const actionsRef = collection(db, 'users', user.uid, 'actions');
     const q = query(
       actionsRef,
-      where('status', '==', 'pending'),
-      orderBy('createdAt', 'desc'),
-      limit(5)
+      orderBy('createdAt', 'desc')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items: ActionItem[] = snapshot.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       })) as ActionItem[];
-      if (items.length > actions.length && actions.length > 0) {
+      const pending = items.filter((a: any) => a.status === 'pending').slice(0, 5);
+      if (pending.length > actions.length && actions.length > 0) {
         setHasNewActions(true);
       }
-      setActions(items);
+      setActions(pending);
     });
     return () => unsubscribe();
   }, [user]);
