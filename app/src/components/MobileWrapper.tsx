@@ -92,6 +92,14 @@ export function MobileWrapper({ children }: MobileWrapperProps) {
               <span className="font-medium">Conversaciones</span>
             </Link>
             <Link
+              href="/conocimiento"
+              onClick={closeSidebar}
+              className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 ${pathname === '/conocimiento' ? 'border-orange-500 bg-white/5' : 'border-transparent hover:border-blue-500'}`}
+            >
+              <span className="text-xl">🧠</span>
+              <span className="font-medium">Conocimiento</span>
+            </Link>
+            <Link
               href="/search"
               onClick={closeSidebar}
               className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-white/5 transition-colors border-l-2 ${pathname === '/search' ? 'border-orange-500 bg-white/5' : 'border-transparent hover:border-blue-500'}`}
