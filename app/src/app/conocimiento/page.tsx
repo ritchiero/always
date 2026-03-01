@@ -405,7 +405,7 @@ export default function ConocimientoPage() {
                                                                                                                                   {mention.timestamp.toLocaleDateString('es-MX', {
                                                                                                                                       month: 'short',
                                                                                                                                       day: 'numeric',
-                                                                                                      </>                                                                                                                                      minute: '2-digit',
+                                                                                                      hour: '2-digit', minute: '2-digit',
                                                                                                     })}
                                                                                                                                   </p>
                                                                                                     </div>
