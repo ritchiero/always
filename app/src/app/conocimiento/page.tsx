@@ -177,18 +177,18 @@ export default function ConocimientoPage() {
         return (
                 <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
                         <div className="text-center">
-                                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>div>
-                                  <p className="text-gray-400">Cargando Knowledge Graph...</p>p>
-                        </div>div>
-                </div>div>
+                                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                                  <p className="text-gray-400">Cargando Knowledge Graph...</p>
+                        </div>
+                </div>
               );
   }
   
     if (!user) {
           return (
                   <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-                          <p className="text-gray-400">Debes iniciar sesion para ver tu Knowledge Graph</p>p>
-                  </div>div>
+                          <p className="text-gray-400">Debes iniciar sesion para ver tu Knowledge Graph</p>
+                  </div>
                 );
     }
   
@@ -197,31 +197,31 @@ export default function ConocimientoPage() {
                 <div className="max-w-7xl mx-auto">
                   {/* Header */}
                         <div className="mb-6">
-                                  <h1 className="text-2xl md:text-3xl font-bold mb-2">🧠 Knowledge Graph</h1>h1>
+                                  <h1 className="text-2xl md:text-3xl font-bold mb-2">🧠 Knowledge Graph</h1>
                                   <p className="text-gray-400 text-sm">
                                               Tu red de conocimiento construida automaticamente desde tus conversaciones
-                                  </p>p>
-                        </div>div>
+                                  </p>
+                        </div>
                 
                   {/* Stats */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                                   <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                              <div className="text-2xl font-bold text-orange-400">{totalEntities}</div>div>
-                                              <div className="text-xs text-gray-400">Entidades</div>div>
-                                  </div>div>
+                                              <div className="text-2xl font-bold text-orange-400">{totalEntities}</div>
+                                              <div className="text-xs text-gray-400">Entidades</div>
+                                  </div>
                                   <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                              <div className="text-2xl font-bold text-blue-400">{totalPeople}</div>div>
-                                              <div className="text-xs text-gray-400">Personas</div>div>
-                                  </div>div>
+                                              <div className="text-2xl font-bold text-blue-400">{totalPeople}</div>
+                                              <div className="text-xs text-gray-400">Personas</div>
+                                  </div>
                                   <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                              <div className="text-2xl font-bold text-purple-400">{totalCompanies}</div>div>
-                                              <div className="text-xs text-gray-400">Empresas</div>div>
-                                  </div>div>
+                                              <div className="text-2xl font-bold text-purple-400">{totalCompanies}</div>
+                                              <div className="text-xs text-gray-400">Empresas</div>
+                                  </div>
                                   <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                              <div className="text-2xl font-bold text-green-400">{totalProjects}</div>div>
-                                              <div className="text-xs text-gray-400">Proyectos</div>div>
-                                  </div>div>
-                        </div>div>
+                                              <div className="text-2xl font-bold text-green-400">{totalProjects}</div>
+                                              <div className="text-xs text-gray-400">Proyectos</div>
+                                  </div>
+                        </div>
                 
                   {/* Search and Filter */}
                         <div className="flex flex-col md:flex-row gap-3 mb-6">
@@ -237,14 +237,14 @@ export default function ConocimientoPage() {
                                                 onChange={(e) => setFilterType(e.target.value)}
                                                 className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-orange-500"
                                               >
-                                              <option value="all">Todos los tipos</option>option>
+                                              <option value="all">Todos los tipos</option>
                                     {entityTypes.map(type => (
                                                               <option key={type} value={type}>
                                                                 {TYPE_ICONS[type] || TYPE_ICONS.default} {type.charAt(0).toUpperCase() + type.slice(1)}
-                                                              </option>option>
+                                                              </option>
                                                             ))}
-                                  </select>select>
-                        </div>div>
+                                  </select>
+                        </div>
                 
                   {/* Main Content: Entity List + Detail */}
                         <div className="flex flex-col lg:flex-row gap-6">
@@ -252,18 +252,18 @@ export default function ConocimientoPage() {
                                   <div className={`${selectedEntity ? 'lg:w-1/2' : 'w-full'} space-y-2`}>
                                     {filteredEntities.length === 0 ? (
                           <div className="text-center py-12 bg-gray-800/30 rounded-lg border border-gray-700/50">
-                                          <p className="text-4xl mb-3">🧠</p>p>
+                                          <p className="text-4xl mb-3">🧠</p>
                                           <p className="text-gray-400 mb-2">
                                             {entities.length === 0
                                                                   ? 'Tu Knowledge Graph esta vacio'
                                                                   : 'No se encontraron entidades'}
-                                          </p>p>
+                                          </p>
                                           <p className="text-sm text-gray-500">
                                             {entities.length === 0
                                                                   ? 'Las entidades se extraen automaticamente de tus grabaciones'
                                                                   : 'Intenta con otro termino de busqueda'}
-                                          </p>p>
-                          </div>div>
+                                          </p>
+                          </div>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {filteredEntities.map((entity) => (
@@ -277,27 +277,27 @@ export default function ConocimientoPage() {
                                                                     }`}
                                                                   >
                                                                   <div className="flex items-start gap-2">
-                                                                                        <span className="text-lg">{TYPE_ICONS[entity.type] || TYPE_ICONS.default}</span>span>
+                                                                                        <span className="text-lg">{TYPE_ICONS[entity.type] || TYPE_ICONS.default}</span>
                                                                                         <div className="flex-1 min-w-0">
-                                                                                                                <div className="font-medium truncate">{entity.name}</div>div>
+                                                                                                                <div className="font-medium truncate">{entity.name}</div>
                                                                                                                 <div className="flex items-center gap-2 mt-1">
                                                                                                                                           <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[entity.type] || TYPE_COLORS.default}`}>
                                                                                                                                             {entity.type}
-                                                                                                                                            </span>span>
+                                                                                                                                            </span>
                                                                                                                                           <span className="text-xs text-gray-500">
                                                                                                                                             {entity.mentionCount} menciones
-                                                                                                                                            </span>span>
-                                                                                                                  </div>div>
+                                                                                                                                            </span>
+                                                                                                                  </div>
                                                                                           {entity.description && (
-                                                                                              <p className="text-xs text-gray-400 mt-1 line-clamp-2">{entity.description}</p>p>
+                                                                                              <p className="text-xs text-gray-400 mt-1 line-clamp-2">{entity.description}</p>
                                                                                                                 )}
-                                                                                          </div>div>
-                                                                  </div>div>
-                                              </button>button>
+                                                                                          </div>
+                                                                  </div>
+                                              </button>
                                             ))}
-                          </div>div>
+                          </div>
                                               )}
-                                  </div>div>
+                                  </div>
                         
                           {/* Entity Detail Panel */}
                           {selectedEntity && (
@@ -309,64 +309,64 @@ export default function ConocimientoPage() {
                                                                           className="absolute top-3 right-3 text-gray-500 hover:text-white"
                                                                         >
                                                                         ✕
-                                                      </button>button>
+                                                      </button>
                                       
                                         {/* Entity Header */}
                                                       <div className="flex items-start gap-3 mb-4">
-                                                                        <span className="text-3xl">{TYPE_ICONS[selectedEntity.type] || TYPE_ICONS.default}</span>span>
+                                                                        <span className="text-3xl">{TYPE_ICONS[selectedEntity.type] || TYPE_ICONS.default}</span>
                                                                         <div>
-                                                                                            <h2 className="text-xl font-bold">{selectedEntity.name}</h2>h2>
+                                                                                            <h2 className="text-xl font-bold">{selectedEntity.name}</h2>
                                                                                             <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[selectedEntity.type] || TYPE_COLORS.default}`}>
                                                                                               {selectedEntity.type}
-                                                                                              </span>span>
-                                                                        </div>div>
-                                                      </div>div>
+                                                                                              </span>
+                                                                        </div>
+                                                      </div>
                                       
                                         {/* Description */}
                                         {selectedEntity.description && (
-                                            <p className="text-gray-300 text-sm mb-4">{selectedEntity.description}</p>p>
+                                            <p className="text-gray-300 text-sm mb-4">{selectedEntity.description}</p>
                                                       )}
                                       
                                         {/* Aliases */}
                                         {selectedEntity.aliases && selectedEntity.aliases.length > 0 && (
                                             <div className="mb-4">
-                                                                <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-1">Aliases</h3>h3>
+                                                                <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-1">Aliases</h3>
                                                                 <div className="flex flex-wrap gap-1">
                                                                   {selectedEntity.aliases.map((alias, i) => (
-                                                                      <span key={i} className="text-xs bg-gray-700/50 px-2 py-1 rounded">{alias}</span>span>
+                                                                      <span key={i} className="text-xs bg-gray-700/50 px-2 py-1 rounded">{alias}</span>
                                                                     ))}
-                                                                </div>div>
-                                            </div>div>
+                                                                </div>
+                                            </div>
                                                       )}
                                       
                                         {/* Stats */}
                                                       <div className="grid grid-cols-3 gap-2 mb-4">
                                                                         <div className="bg-gray-900/50 rounded p-2 text-center">
-                                                                                            <div className="text-lg font-bold text-orange-400">{selectedEntity.mentionCount}</div>div>
-                                                                                            <div className="text-xs text-gray-500">Menciones</div>div>
-                                                                        </div>div>
+                                                                                            <div className="text-lg font-bold text-orange-400">{selectedEntity.mentionCount}</div>
+                                                                                            <div className="text-xs text-gray-500">Menciones</div>
+                                                                        </div>
                                                                         <div className="bg-gray-900/50 rounded p-2 text-center">
-                                                                                            <div className="text-lg font-bold text-blue-400">{relationships.length}</div>div>
-                                                                                            <div className="text-xs text-gray-500">Relaciones</div>div>
-                                                                        </div>div>
+                                                                                            <div className="text-lg font-bold text-blue-400">{relationships.length}</div>
+                                                                                            <div className="text-xs text-gray-500">Relaciones</div>
+                                                                        </div>
                                                                         <div className="bg-gray-900/50 rounded p-2 text-center">
                                                                                             <div className="text-xs font-medium text-gray-300">
                                                                                               {selectedEntity.lastSeen.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
-                                                                                              </div>div>
-                                                                                            <div className="text-xs text-gray-500">Ultima vez</div>div>
-                                                                        </div>div>
-                                                      </div>div>
+                                                                                              </div>
+                                                                                            <div className="text-xs text-gray-500">Ultima vez</div>
+                                                                        </div>
+                                                      </div>
                                       
                                         {detailLoading ? (
                                             <div className="text-center py-4">
-                                                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto"></div>div>
-                                            </div>div>
+                                                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto"></div>
+                                            </div>
                                           ) : (
                                             <>
                                               {/* Relationships */}
                                               {relationships.length > 0 && (
                                                                     <div className="mb-4">
-                                                                                            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Relaciones</h3>h3>
+                                                                                            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Relaciones</h3>
                                                                                             <div className="space-y-1">
                                                                                               {relationships.map((rel) => {
                                                                                                   const isSource = rel.sourceEntityId === selectedEntity.id;
@@ -374,9 +374,9 @@ export default function ConocimientoPage() {
                                                                                                   const otherName = entityNames[otherEntityId] || 'Desconocido';
                                                                                                   return (
                                                                                                                                   <div key={rel.id} className="flex items-center gap-2 text-sm bg-gray-900/30 rounded px-3 py-2">
-                                                                                                                                                                  <span className="text-gray-400">{isSource ? '→' : '←'}</span>span>
-                                                                                                                                                                  <span className="text-orange-300">{rel.type}</span>span>
-                                                                                                                                                                  <span className="text-gray-400">→</span>span>
+                                                                                                                                                                  <span className="text-gray-400">{isSource ? '→' : '←'}</span>
+                                                                                                                                                                  <span className="text-orange-300">{rel.type}</span>
+                                                                                                                                                                  <span className="text-gray-400">→</span>
                                                                                                                                                                   <button
                                                                                                                                                                                                       onClick={() => {
                                                                                                                                                                                                                                             const otherEntity = entities.find(e => e.id === otherEntityId);
@@ -385,57 +385,56 @@ export default function ConocimientoPage() {
                                                                                                                                                                                                       className="text-blue-400 hover:text-blue-300 hover:underline"
                                                                                                                                                                                                     >
                                                                                                                                                                     {otherName}
-                                                                                                                                                                    </button>button>
-                                                                                                                                    </div>div>
+                                                                                                                                                                    </button>
+                                                                                                                                    </div>
                                                                                                                                 );
                                                                       })}
-                                                                                              </div>div>
-                                                                    </div>div>
+                                                                                              </div>
+                                                                    </div>
                                                                 )}
                                             
                                               {/* Recent Mentions */}
                                               {mentions.length > 0 && (
                                                                     <div>
-                                                                                            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Menciones Recientes</h3>h3>
+                                                                                            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Menciones Recientes</h3>
                                                                                             <div className="space-y-2">
                                                                                               {mentions.map((mention) => (
                                                                                                   <div key={mention.id} className="bg-gray-900/30 rounded px-3 py-2">
-                                                                                                                                <p className="text-sm text-gray-300 line-clamp-2">{mention.context}</p>p>
+                                                                                                                                <p className="text-sm text-gray-300 line-clamp-2">{mention.context}</p>
                                                                                                                                 <p className="text-xs text-gray-500 mt-1">
                                                                                                                                   {mention.timestamp.toLocaleDateString('es-MX', {
                                                                                                                                       month: 'short',
                                                                                                                                       day: 'numeric',
-                                                                                                                                      hour: '2-digit',
-                                                                                                                                      minute: '2-digit',
+                                                                                                      </>                                                                                                                                      minute: '2-digit',
                                                                                                     })}
-                                                                                                                                  </p>p>
-                                                                                                    </div>div>
+                                                                                                                                  </p>
+                                                                                                    </div>
                                                                                                 ))}
-                                                                                              </div>div>
-                                                                    </div>div>
+                                                                                              </div>
+                                                                    </div>
                                                                 )}
                                             
                                               {/* Metadata */}
                                               {selectedEntity.metadata && Object.keys(selectedEntity.metadata).length > 0 && (
                                                                     <div className="mt-4">
-                                                                                            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Detalles</h3>h3>
+                                                                                            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Detalles</h3>
                                                                                             <div className="space-y-1">
                                                                                               {Object.entries(selectedEntity.metadata).map(([key, value]) => (
                                                                                                   <div key={key} className="flex items-center gap-2 text-sm">
-                                                                                                                                <span className="text-gray-500">{key}:</span>span>
-                                                                                                                                <span className="text-gray-300">{String(value)}</span>span>
-                                                                                                    </div>div>
+                                                                                                                                <span className="text-gray-500">{key}:</span>
+                                                                                                                                <span className="text-gray-300">{String(value)}</span>
+                                                                                                    </div>
                                                                                                 ))}
-                                                                                              </div>div>
-                                                                    </div>div>
+                                                                                              </div>
+                                                                    </div>
                                                                 )}
-                                            </>>
+                                            </>
                                           )}
-                                      </div>div>
-                        </div>div>
+                                      </div>
+                        </div>
                                   )}
-                        </div>div>
-                </div>div>
-          </div>div>
+                        </div>
+                </div>
+          </div>
         );
 }</></div>
