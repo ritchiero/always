@@ -16,6 +16,7 @@ import {
 import { generateDailySummary } from './daily-summary';
 import { indexAllRecordings, indexRecording } from './indexing';
 import { reprocessAllUserRecordings } from './reprocess-all';
+import { processKnowledgeGraph } from './knowledge-graph';
 import {
     generateEmailDraft,
     generateCalendarEventDraft,
@@ -488,7 +489,15 @@ export const processRecording = functions
                     console.error(`Failed to index ${recordingId}:`, indexError);
           }
 
-          return { success: true, recordingId, analysis };
+              // === Knowledge Graph: Extract entities and update graph ===
+        try {
+            await processKnowledgeGraph(userId, recordingId, transcript);
+            console.log(`[KnowledgeGraph] Successfully processed for ${recordingId}`);
+        } catch (kgError) {
+            console.error(`[KnowledgeGraph] Failed for ${recordingId}:`, kgError);
+        }
+
+        return { success: true, recordingId, analysis };
                 } catch (error) {
                         console.error(`Error processing ${recordingId}:`, error);
                         await snapshot.ref.update({
