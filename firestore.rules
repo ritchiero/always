@@ -96,6 +96,37 @@ service cloud.firestore {
       match /settings/{settingId} {
         allow read, write: if isOwner(userId);
       }
+
+      // === Knowledge Graph Collections ===
+      // Entities (people, companies, projects, etc.)
+      match /entities/{entityId} {
+        allow read: if isOwner(userId);
+        // Write only from Cloud Functions (admin SDK bypasses rules)
+        allow write: if false;
+      }
+
+      // Relationships between entities
+      match /relationships/{relationshipId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // Entity mentions from recordings
+      match /entity_mentions/{mentionId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // Daily notes (auto-generated summaries)
+      match /daily_notes/{noteId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // User corrections to entity data
+      match /corrections/{correctionId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ==================== EXECUTED ACTIONS ====================
