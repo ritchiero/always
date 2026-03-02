@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, getDocs, limit, where, doc, getDoc } from 'firebase/firestore';\nimport dynamic from 'next/dynamic';\n\nconst GraphView = dynamic(() => import('@/components/GraphView'), { ssr: false });
+import { collection, query, orderBy, getDocs, limit, where, doc, getDoc } from 'firebase/firestore';
+import dynamic from 'next/dynamic';
+
+const GraphView = dynamic(() => import('@/components/GraphView'), { ssr: false });
 
 interface Entity {
     id: string;
