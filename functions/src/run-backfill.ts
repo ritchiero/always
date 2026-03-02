@@ -6,7 +6,7 @@ import * as admin from 'firebase-admin';
 
 // Initialize admin if not already
 if (!admin.apps.length) {
-    admin.initializeApp();
+    admin.initializeApp({ projectId: 'always-f6dda' });
 }
 
 import { processKnowledgeGraph } from './knowledge-graph';
