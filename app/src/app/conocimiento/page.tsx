@@ -71,7 +71,8 @@ export default function ConocimientoPage() {
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
     const [filterType, setFilterType] = useState<string>('all');
-    const [searchTerm, setSearchTerm] = useState('');\n    const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
 
   // Fetch all entities
   useEffect(() => {
@@ -310,7 +311,9 @@ export default function ConocimientoPage() {
                                               )}
                                   </div>
                         
-                          </>)}\n\n                {/* Entity Detail Panel */}
+                          </>)}
+
+                {/* Entity Detail Panel */}
                           {selectedEntity && (
                         <div className="lg:w-1/2">
                                       <div className="bg-gray-800/50 rounded-lg border border-gray-700/50 p-5 sticky top-4">
