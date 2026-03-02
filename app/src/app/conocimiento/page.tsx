@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, getDocs, limit, where, doc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, limit, where, doc, getDoc } from 'firebase/firestore';\nimport dynamic from 'next/dynamic';\n\nconst GraphView = dynamic(() => import('@/components/GraphView'), { ssr: false });
 
 interface Entity {
     id: string;
@@ -68,7 +68,7 @@ export default function ConocimientoPage() {
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
     const [filterType, setFilterType] = useState<string>('all');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');\n    const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
 
   // Fetch all entities
   useEffect(() => {
@@ -223,7 +223,15 @@ export default function ConocimientoPage() {
                                   </div>
                         </div>
                 
-                  {/* Search and Filter */}
+                                  {/* View Toggle */}
+                <div className="flex gap-2 mb-4">
+                    <button onClick={() => setViewMode('list')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white' : 'bg-gray-800/50 text-gray-400 hover:text-white border border-gray-700/50'}`}>Lista</button>
+                    <button onClick={() => setViewMode('graph')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'graph' ? 'bg-orange-500 text-white' : 'bg-gray-800/50 text-gray-400 hover:text-white border border-gray-700/50'}`}>Grafo</button>
+                </div>
+                {viewMode === 'graph' ? (
+                    <GraphView entities={entities} relationships={relationships} onSelectEntity={selectEntity} />
+                ) : (<>
+                {/* Search and Filter */}
                         <div className="flex flex-col md:flex-row gap-3 mb-6">
                                   <input
                                                 type="text"
@@ -299,7 +307,7 @@ export default function ConocimientoPage() {
                                               )}
                                   </div>
                         
-                          {/* Entity Detail Panel */}
+                          </>)}\n\n                {/* Entity Detail Panel */}
                           {selectedEntity && (
                         <div className="lg:w-1/2">
                                       <div className="bg-gray-800/50 rounded-lg border border-gray-700/50 p-5 sticky top-4">
