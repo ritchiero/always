@@ -72,18 +72,27 @@ async function extractEntities(
         messages: [
           {
                     role: 'system',
-                    content: `Eres un extractor de entidades de conversaciones. Analiza transcripciones y extrae personas, empresas, proyectos, temas y decisiones mencionados. 
+                    content: `Eres un extractor de entidades y relaciones de conversaciones. Analiza transcripciones y extrae personas, empresas, proyectos, temas y decisiones mencionados, Y LAS RELACIONES ENTRE ELLOS.
 
-                    REGLAS:
-                    - Extrae SOLO entidades que realmente se mencionan en la conversacion
-                    - Si una persona se menciona solo por nombre ("Maria"), registrala asi
-                    - Si detectas que un nombre podria ser una variante de una entidad existente, usa el nombre existente
-                    - Las decisiones son acuerdos concretos tomados durante la conversacion
-                    - Los temas son conceptos recurrentes o areas de discusion
-                    - Confidence de 0 a 1 segun que tan claro es que la entidad existe
-                    - Aplica SIEMPRE las correcciones previas del usuario
+REGLAS ENTIDADES:
+- Extrae SOLO entidades que realmente se mencionan en la conversacion
+- Si una persona se menciona solo por nombre ("Maria"), registrala asi
+- Si detectas que un nombre podria ser una variante de una entidad existente, usa el nombre existente
+- Las decisiones son acuerdos concretos tomados durante la conversacion
+- Los temas son conceptos recurrentes o areas de discusion
+- Confidence de 0 a 1 segun que tan claro es que la entidad existe
+- Aplica SIEMPRE las correcciones previas del usuario
 
-                    Responde SOLO con JSON valido.`
+REGLAS RELACIONES (MUY IMPORTANTE - SIEMPRE genera relaciones):
+- Si dos personas hablan entre si o se mencionan juntas, crea una relacion
+- Si una persona trabaja en o esta asociada a un proyecto/empresa, crea WORKS_AT o PARTICIPATES_IN
+- Si alguien toma una decision, crea DECIDED
+- Si un tema se discute en relacion a una persona/proyecto, crea RELATED_TO
+- Si alguien gestiona o lidera algo, crea MANAGES
+- SIEMPRE genera al menos 2-3 relaciones por conversacion
+- Las relaciones son bidireccionales conceptualmente pero registra la direccion mas natural
+
+Responde SOLO con JSON valido.`
           },
           {
                     role: 'user',
@@ -117,7 +126,7 @@ async function extractEntities(
                                                                                                                                                   {
                                                                                                                                                         "sourceEntity": "nombre entidad origen",
                                                                                                                                                               "targetEntity": "nombre entidad destino",
-                                                                                                                                                                    "type": "WORKS_AT|MANAGES|PARTICIPATES_IN|DECIDED|RELATED_TO|REPORTS_TO",
+                                                                                                                                                                    "type": "WORKS_AT|MANAGES|PARTICIPATES_IN|DECIDED|RELATED_TO|REPORTS_TO|DISCUSSED|KNOWS|MENTIONED_WITH",
                                                                                                                                                                           "context": "por que estan relacionados"
                                                                                                                                                                               }
                                                                                                                                                                                 ],
