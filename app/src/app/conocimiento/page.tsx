@@ -227,15 +227,15 @@ export default function ConocimientoPage() {
                                   </div>
                         </div>
                 
-                                  {/* View Toggle */}
+                {/* View Toggle */}
                 <div className="flex gap-2 mb-4">
-                    <button onClick={() => setViewMode('list')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white' : 'bg-gray-800/50 text-gray-400 hover:text-white border border-gray-700/50'}`}>Lista</button>
-                    <button onClick={() => setViewMode('graph')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'graph' ? 'bg-orange-500 text-white' : 'bg-gray-800/50 text-gray-400 hover:text-white border border-gray-700/50'}`}>Grafo</button>
+                    <button onClick={() => setViewMode("list")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === "list" ? "bg-orange-500 text-white" : "bg-gray-800/50 text-gray-400 hover:text-white border border-gray-700/50"}`}>Lista</button>
+                    <button onClick={() => setViewMode("graph")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === "graph" ? "bg-orange-500 text-white" : "bg-gray-800/50 text-gray-400 hover:text-white border border-gray-700/50"}`}>Grafo</button>
                 </div>
-                {viewMode === 'graph' ? (
+                {viewMode === "graph" ? (
                     <GraphView entities={entities} relationships={relationships} onSelectEntity={selectEntity} />
                 ) : (<>
-                {/* Search and Filter */}
+                  {/* Search and Filter */}
                         <div className="flex flex-col md:flex-row gap-3 mb-6">
                                   <input
                                                 type="text"
@@ -311,9 +311,7 @@ export default function ConocimientoPage() {
                                               )}
                                   </div>
                         
-                          </>)}
-
-                {/* Entity Detail Panel */}
+                          {/* Entity Detail Panel */}
                           {selectedEntity && (
                         <div className="lg:w-1/2">
                                       <div className="bg-gray-800/50 rounded-lg border border-gray-700/50 p-5 sticky top-4">
@@ -448,6 +446,7 @@ export default function ConocimientoPage() {
                         </div>
                                   )}
                         </div>
+                </>)}
                 </div>
           </div>
         );
