@@ -8,7 +8,7 @@ import { processKnowledgeGraph } from './knowledge-graph';
 
 export const backfillKnowledgeGraph = functions
   .region('us-central1')
-  .runWith({ timeoutSeconds: 540, memory: '1GB' })
+  .runWith({ timeoutSeconds: 540, memory: '1GB', secrets: ['OPENAI_API_KEY'] })
   .https.onRequest(async (req, res) => {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed' });
