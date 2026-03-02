@@ -162,7 +162,7 @@ async function resolveEntities(
   for (const entity of extracted) {
         let found = false;
         const nameLower = entity.name.toLowerCase();
-        const aliasesLower = entity.aliases.map(a => a.toLowerCase());
+        const aliasesLower =(entity.aliases || []).map(a => a.toLowerCase());
 
       for (const existing of existingEntities) {
               const existingNameLower = existing.name.toLowerCase();
