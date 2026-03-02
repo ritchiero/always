@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
+import { buildContextPackage, formatContextForPrompt } from './context-builder';
 
 // Encryption key for Manus API keys (from env or Firebase config)
 const ENCRYPTION_KEY = process.env.MANUS_ENCRYPTION_KEY || 'always-manus-default-key-32ch';
@@ -48,6 +49,7 @@ export async function getUserManusSettings(
     .collection('users').doc(userId)
     .collection('integrations').doc('manus')
     .get();
+
   if (!doc.exists) return null;
   return doc.data() as ManusUserSettings;
 }
@@ -55,6 +57,7 @@ export async function getUserManusSettings(
 export async function getUserManusApiKey(userId: string): Promise<string | null> {
   const settings = await getUserManusSettings(userId);
   if (!settings || !settings.isActive || !settings.apiKeyEncrypted) return null;
+
   try {
     return decryptApiKey(settings.apiKeyEncrypted);
   } catch (error) {
@@ -153,7 +156,7 @@ export function buildManusPrompt(action: {
 }): string {
   let prompt = `Execute the following action item:\n\n`;
   prompt += `Task: ${action.task}\n`;
-  
+
   if (action.suggestedAction) {
     prompt += `Suggested approach: ${action.suggestedAction}\n`;
   }
@@ -169,8 +172,9 @@ export function buildManusPrompt(action: {
   if (action.deadline) {
     prompt += `Deadline: ${action.deadline}\n`;
   }
-  
+
   prompt += `\nPlease execute this task. If you need clarification, ask before proceeding.`;
+
   return prompt;
 }
 
@@ -191,19 +195,32 @@ export async function executeActionWithManus(
   }
 ): Promise<{ taskId: string; taskUrl: string }> {
   const db = admin.firestore();
-  
+
   // Get user's Manus API key
   const apiKey = await getUserManusApiKey(userId);
   if (!apiKey) {
     throw new Error('Manus API key not configured. Go to Profile > Integrations to add your key.');
   }
 
-  // Build the prompt
-  const prompt = buildManusPrompt(action);
+  // Build the base prompt
+  const basePrompt = buildManusPrompt(action);
+
+  // Enrich prompt with Knowledge Graph context
+  let enrichedPrompt = basePrompt;
+  try {
+    const searchText = `${action.task} ${action.context || ''} ${action.assignee || ''}`;
+    const contextPackage = await buildContextPackage(userId, searchText, action.assignee);
+    const kgContext = formatContextForPrompt(contextPackage);
+    if (kgContext) {
+      enrichedPrompt = basePrompt + '\n\n' + kgContext;
+    }
+  } catch (kgError) {
+    console.warn('KG context enrichment failed, using base prompt:', kgError);
+  }
 
   // Create the task in Manus
   const manusResponse = await createManusTask(apiKey, {
-    prompt,
+    prompt: enrichedPrompt,
     taskMode: 'agent',
     agentProfile: 'manus-1.6',
   });
@@ -246,7 +263,7 @@ export async function handleManusWebhook(payload: {
   output?: string;
 }): Promise<void> {
   const db = admin.firestore();
-  
+
   // Find the action document with this manusTaskId
   // We need to search across all users
   const usersSnapshot = await db.collectionGroup('actions')
@@ -260,6 +277,7 @@ export async function handleManusWebhook(payload: {
   }
 
   const actionDoc = usersSnapshot.docs[0];
+
   const updateData: Record<string, any> = {
     manusStatus: payload.status,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
