@@ -50,15 +50,15 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const TYPE_ICONS: Record<string, string> = {
-  person: '\u{1F464}',
-  company: '\u{1F3E2}',
-  project: '\u{1F4C1}',
-  product: '\u{1F4E6}',
-  place: '\u{1F4CD}',
-  concept: '\u{1F4A1}',
-  event: '\u{1F4C5}',
-  tool: '\u{1F527}',
-  default: '\u{1F539}',
+  person: '👤',
+  company: '🏢',
+  project: '📁',
+  product: '📦',
+  place: '📍',
+  concept: '💡',
+  event: '📅',
+  tool: '🔧',
+  default: '🔹',
 };
 
 export default function ConocimientoPage() {
@@ -254,7 +254,7 @@ export default function ConocimientoPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">\u{1F9E0} Knowledge Graph</h1>
+          <h1 className="text-2xl md:text-3xl font-bold mb-2">🧠 Knowledge Graph</h1>
           <p className="text-gray-400 text-sm">
             Tu red de conocimiento construida automaticamente desde tus conversaciones
           </p>
@@ -336,7 +336,7 @@ export default function ConocimientoPage() {
             <div className={`${selectedEntity ? 'lg:w-1/2' : 'w-full'} space-y-2`}>
               {filteredEntities.length === 0 ? (
                 <div className="text-center py-12 bg-gray-800/30 rounded-lg border border-gray-700/50">
-                  <p className="text-4xl mb-3">\u{1F9E0}</p>
+                  <p className="text-4xl mb-3">🧠</p>
                   <p className="text-gray-400 mb-2">
                     {entities.length === 0
                       ? 'Tu Knowledge Graph esta vacio'
@@ -391,7 +391,7 @@ export default function ConocimientoPage() {
                   <button
                     onClick={() => setSelectedEntity(null)}
                     className="absolute top-3 right-3 text-gray-500 hover:text-white"
-                  >\u2715</button>
+                  >✕</button>
 
                   {/* Entity Header */}
                   <div className="flex items-start gap-3 mb-4">
@@ -456,9 +456,9 @@ export default function ConocimientoPage() {
                               const otherName = entityNames[otherEntityId] || 'Desconocido';
                               return (
                                 <div key={rel.id} className="flex items-center gap-2 text-sm bg-gray-900/30 rounded px-3 py-2">
-                                  <span className="text-gray-400">{isSource ? '\u2192' : '\u2190'}</span>
+                                  <span className="text-gray-400">{isSource ? '→' : '←'}</span>
                                   <span className="text-orange-300">{rel.type}</span>
-                                  <span className="text-gray-400">\u2192</span>
+                                  <span className="text-gray-400">→</span>
                                   <button
                                     onClick={() => {
                                       const otherEntity = entities.find(e => e.id === otherEntityId);
