@@ -154,30 +154,44 @@ export function buildManusPrompt(action: {
   assignee?: string;
   deadline?: string;
 }): string {
-  let prompt = `Execute the following action item:\n\n`;
-  prompt += `Task: ${action.task}\n`;
+  let prompt = `You are executing a task for the user based on information captured from their real conversations and meetings. The user's Knowledge Graph has been consulted to provide you with rich context about the people, projects, and topics involved.
+
+TASK TO EXECUTE:
+${action.task}
+`;
 
   if (action.suggestedAction) {
-    prompt += `Suggested approach: ${action.suggestedAction}\n`;
-  }
-  if (action.targetService && action.targetService !== 'other') {
-    prompt += `Target service: ${action.targetService}\n`;
-  }
-  if (action.context) {
-    prompt += `Context: ${action.context}\n`;
-  }
-  if (action.assignee) {
-    prompt += `Responsible person: ${action.assignee}\n`;
-  }
-  if (action.deadline) {
-    prompt += `Deadline: ${action.deadline}\n`;
+    prompt += `\nSUGGESTED APPROACH: ${action.suggestedAction}\n`;
   }
 
-  prompt += `\nPlease execute this task. If you need clarification, ask before proceeding.`;
+  if (action.targetService && action.targetService !== 'other') {
+    prompt += `\nTARGET SERVICE: ${action.targetService}\n`;
+  }
+
+  if (action.context) {
+    prompt += `\nORIGINAL CONTEXT (from the conversation where this task was identified):\n${action.context}\n`;
+  }
+
+  if (action.assignee) {
+    prompt += `\nRESPONSIBLE PERSON: ${action.assignee}\n`;
+  }
+
+  if (action.deadline) {
+    prompt += `\nDEADLINE: ${action.deadline}\n`;
+  }
+
+  prompt += `
+INSTRUCTIONS:
+- Use the Knowledge Graph context below to make your execution precise and informed
+- Reference specific details from the context (names, projects, decisions) in your output
+- If writing an email or message, use the correct names and terminology from the corrections list
+- Consider pending actions and recent decisions to avoid conflicts or redundancy
+- If you need clarification on something not covered by the context, ask before proceeding
+- Respond in the same language the user uses in their conversations (likely Spanish)
+`;
 
   return prompt;
 }
-
 // =========================================
 // EXECUTE ACTION WITH MANUS
 // =========================================
@@ -206,16 +220,28 @@ export async function executeActionWithManus(
   const basePrompt = buildManusPrompt(action);
 
   // Enrich prompt with Knowledge Graph context
+  // Use a comprehensive search text that includes all action details
   let enrichedPrompt = basePrompt;
   try {
-    const searchText = `${action.task} ${action.context || ''} ${action.assignee || ''}`;
+    const searchParts = [
+      action.task,
+      action.context || '',
+      action.assignee || '',
+      action.suggestedAction || '',
+    ].filter(Boolean);
+    const searchText = searchParts.join(' ');
+
     const contextPackage = await buildContextPackage(userId, searchText, action.assignee);
     const kgContext = formatContextForPrompt(contextPackage);
+
     if (kgContext) {
-      enrichedPrompt = basePrompt + '\n\n' + kgContext;
+      enrichedPrompt = basePrompt + '\n' + kgContext;
+      console.log(`[Manus] Context enriched: ${contextPackage.entities.length} entities, ${contextPackage.relationships.length} relationships, ${contextPackage.conversationHistory.length} conversations`);
+    } else {
+      console.log('[Manus] No KG context found, using base prompt');
     }
   } catch (kgError) {
-    console.warn('KG context enrichment failed, using base prompt:', kgError);
+    console.warn('[Manus] KG context enrichment failed, using base prompt:', kgError);
   }
 
   // Create the task in Manus
@@ -233,6 +259,7 @@ export async function executeActionWithManus(
       manusTaskId: manusResponse.task_id,
       manusTaskUrl: manusResponse.task_url,
       manusStatus: 'submitted',
+      manusPromptLength: enrichedPrompt.length,
       status: 'in_progress',
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -245,14 +272,13 @@ export async function executeActionWithManus(
       lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-  console.log(`Manus task created: ${manusResponse.task_id} for action ${actionId}`);
+  console.log(`[Manus] Task created: ${manusResponse.task_id} for action ${actionId} (prompt: ${enrichedPrompt.length} chars)`);
 
   return {
     taskId: manusResponse.task_id,
     taskUrl: manusResponse.task_url,
   };
 }
-
 // =========================================
 // WEBHOOK HANDLER
 // =========================================
