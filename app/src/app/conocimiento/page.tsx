@@ -220,14 +220,16 @@ export default function ConocimientoPage() {
 
       recSnap.docs.forEach(d => {
         const data = d.data();
-        const transcript = (data.transcript || data.text || '').toLowerCase();
+        const rawTranscript = data.transcript;
+        const transcriptText = typeof rawTranscript === 'string' ? rawTranscript : (rawTranscript?.text || data.text || '');
+        const transcript = (typeof transcriptText === 'string' ? transcriptText : '').toLowerCase();
         const matches = searchTerms.some(term => transcript.includes(term));
         if (matches) {
           matchingRecordings.push({
             id: d.id,
-            transcript: data.transcript || data.text || '',
+            transcript: typeof data.transcript === 'string' ? data.transcript : (data.transcript?.text || data.text || ''),
             createdAt: data.createdAt?.toDate() || new Date(),
-            title: data.title || undefined,
+            title: data.title || data.analysis?.summary || undefined,
           });
         }
       });
