@@ -17,6 +17,7 @@ import { generateDailySummary } from './daily-summary';
 import { indexAllRecordings, indexRecording } from './indexing';
 import { reprocessAllUserRecordings } from './reprocess-all';
 import { processKnowledgeGraph } from './knowledge-graph';
+export { backfillKnowledgeGraph, getKnowledgeGraphStats } from './backfill-knowledge';
 import {
     generateEmailDraft,
     generateCalendarEventDraft,
