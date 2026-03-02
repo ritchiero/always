@@ -437,4 +437,4 @@ export default function ConocimientoPage() {
                 </div>
           </div>
         );
-}</></div>
+}
