@@ -427,7 +427,7 @@ export default function GraphView({ entities, relationships, onSelectEntity }: G
         return (
                 <div className="flex items-center justify-center h-96 text-gray-500">
                         <p>No hay entidades para mostrar en el grafo</p>p>
-                </div>div>
+                </div>
               );
   }
   
@@ -450,26 +450,26 @@ export default function GraphView({ entities, relationships, onSelectEntity }: G
                           {Object.entries(TYPE_NODE_COLORS).filter(([k]) => k !== 'default').map(([type, color]) => (
                         <div key={type} className="flex items-center gap-1">
                                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                                      <span className="text-gray-400 capitalize">{type}</span>span>
-                        </div>div>
+                                      <span className="text-gray-400 capitalize">{type}</span>
+                        </div>
                       ))}
-                        </div>div>
-                </div>div>
+                        </div>
+                </div>
             {/* Zoom controls */}
                 <div className="absolute top-3 right-3 flex flex-col gap-1">
                         <button
                                     onClick={() => { scaleRef.current = Math.min(5, scaleRef.current * 1.2); }}
                                     className="w-8 h-8 bg-gray-900/80 backdrop-blur rounded text-gray-300 hover:text-white hover:bg-gray-700/80 flex items-center justify-center text-lg"
-                                  >+</button>button>
+                                  >+</button>
                         <button
                                     onClick={() => { scaleRef.current = Math.max(0.2, scaleRef.current * 0.8); }}
                                     className="w-8 h-8 bg-gray-900/80 backdrop-blur rounded text-gray-300 hover:text-white hover:bg-gray-700/80 flex items-center justify-center text-lg"
-                                  >-</button>button>
+                                  >-</button>
                         <button
                                     onClick={() => { scaleRef.current = 1; offsetRef.current = { x: 0, y: 0 }; }}
                                     className="w-8 h-8 bg-gray-900/80 backdrop-blur rounded text-gray-300 hover:text-white hover:bg-gray-700/80 flex items-center justify-center text-xs"
-                                  >Fit</button>button>
-                </div>div>
-          </div>div>
+                                  >Fit</button>
+                </div>
+          </div>
         );
 }</div>
