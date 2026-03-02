@@ -17,6 +17,7 @@ import { generateDailySummary } from './daily-summary';
 import { indexAllRecordings, indexRecording } from './indexing';
 import { reprocessAllUserRecordings } from './reprocess-all';
 import { processKnowledgeGraph } from './knowledge-graph';
+import { buildContextPackage, formatContextForPrompt } from './context-builder';
 export { backfillKnowledgeGraph, getKnowledgeGraphStats } from './backfill-knowledge';
 import {
     generateEmailDraft,
@@ -375,13 +376,25 @@ export const processRecording = functions
         }
 
                 try {
+                        // Fetch Knowledge Graph context to enrich action extraction
+                        let kgContextStr = '';
+                        try {
+                            const kgCtx = await buildContextPackage(userId, transcript);
+                            kgContextStr = formatContextForPrompt(kgCtx);
+                        } catch (kgErr) {
+                            console.warn('[processRecording] KG context fetch failed:', kgErr);
+                        }
+
                         const completion = await getOpenAI().chat.completions.create({
                                   model: 'gpt-4o-mini',
                                   messages: [
                                     {
                                                   role: 'system',
                                                   content: `Eres un asistente que analiza transcripciones de conversaciones/reuniones.
-                                                  Extrae información estructurada. Responde SOLO con JSON válido.`
+Extrae informacion estructurada. Tienes acceso al Knowledge Graph del usuario con informacion sobre personas, proyectos y temas de conversaciones previas.
+Usa este contexto para generar action items MAS PRECISOS y CONTEXTUALES.
+${kgContextStr ? 'CONTEXTO DEL KNOWLEDGE GRAPH:\n' + kgContextStr : ''}
+Responde SOLO con JSON válido.`
                                     },
                                     {
                                                   role: 'user',
