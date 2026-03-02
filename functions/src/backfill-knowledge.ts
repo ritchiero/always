@@ -3,29 +3,23 @@ import * as functions from 'firebase-functions';
 import { processKnowledgeGraph } from './knowledge-graph';
 
 // =========================================
-// BACKFILL: Process existing recordings (onRequest for curl access)
+// BACKFILL: Process existing recordings
 // =========================================
 
 export const backfillKnowledgeGraph = functions
   .region('us-central1')
   .runWith({ timeoutSeconds: 540, memory: '1GB', secrets: ['OPENAI_API_KEY'] })
-  .https.onRequest(async (req, res) => {
-    if (req.method !== 'POST') {
-      res.status(405).json({ error: 'Method not allowed' });
-      return;
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
     }
 
-    const { userId, force, batchSize: bSize, startAfter } = req.body;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
-
+    const userId = context.auth.uid;
     const db = admin.firestore();
-    const batchSize = bSize || 50;
+    const batchSize = data?.batchSize || 50;
+    const startAfter = data?.startAfter || null;
 
-    console.log(`[Backfill] Starting KG backfill for user ${userId}, force=${!!force}`);
+    console.log(`[Backfill] Starting KG backfill for user ${userId}, force=${!!data?.force}`);
 
     let query: any = db
       .collection('users').doc(userId)
@@ -47,8 +41,7 @@ export const backfillKnowledgeGraph = functions
     const snapshot = await query.get();
 
     if (snapshot.empty) {
-      res.json({ success: true, processed: 0, total: 0, message: 'No hay grabaciones', hasMore: false });
-      return;
+      return { success: true, processed: 0, total: 0, message: 'No hay grabaciones', hasMore: false };
     }
 
     const results: { id: string; success: boolean; error?: string; entities?: number }[] = [];
@@ -71,7 +64,7 @@ export const backfillKnowledgeGraph = functions
         .limit(1)
         .get();
 
-      if (!existing.empty && !force) {
+      if (!existing.empty && !data?.force) {
         results.push({ id: doc.id, success: true, error: 'already_processed' });
         continue;
       }
@@ -98,7 +91,7 @@ export const backfillKnowledgeGraph = functions
     const ents = await db.collection('users').doc(userId).collection('entities').get();
     const rels = await db.collection('users').doc(userId).collection('relationships').get();
 
-    res.json({
+    return {
       success: true,
       processed,
       failed,
@@ -112,7 +105,7 @@ export const backfillKnowledgeGraph = functions
       lastDocId,
       message: `Backfill: ${processed} procesadas, ${ents.size} entidades, ${rels.size} relaciones en el grafo`,
       results,
-    });
+    };
   });
 
 // =========================================
