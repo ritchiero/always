@@ -99,6 +99,16 @@ const SendIcon = () => (
 // Constantes de configuración para sesión continua
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000; // Autoguardado silencioso cada 5 min (backup, no corta nada)
 const CONVERSATION_END_SILENCE_MS = 2 * 60 * 1000; // 2 min de silencio = conversación terminó
+
+const KnowledgeIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="5" r="2" strokeWidth={1.5} />
+        <circle cx="5" cy="19" r="2" strokeWidth={1.5} />
+        <circle cx="19" cy="19" r="2" strokeWidth={1.5} />
+        <circle cx="12" cy="12" r="2.5" strokeWidth={1.5} />
+        <path strokeLinecap="round" strokeWidth={1.5} d="M12 7.5v2M8.5 14l-2 3.5M15.5 14l2 3.5" />
+    </svg>
+  );
 const VOICE_THRESHOLD = -50; // dB umbral para detectar voz (ajustable)
 const VOICE_CHECK_INTERVAL = 500; // Chequear voz cada 500ms
 
@@ -943,7 +953,7 @@ export default function Home() {
     { id: 'home', icon: HomeIcon, label: 'Home' },
     { id: 'daily', icon: DailySummaryIcon, label: 'Resumen Diario', href: '/daily' },
     { id: 'calendar', icon: CalendarIcon, label: 'Calendario' },
-    { id: 'tasks', icon: TasksIcon, label: 'Acciones', href: '/actions' },
+    { id: 'tasks', icon: TasksIcon, label: 'Acciones', href: '/actions' },    { id: 'knowledge', icon: KnowledgeIcon, label: 'Conocimiento', href: '/conocimiento' },
     { id: 'search', icon: SearchIcon, label: 'Buscar' },
     { id: 'insights', icon: InsightsIcon, label: 'Integraciones', href: '/integrations' },
   ];
